@@ -1,0 +1,39 @@
+{
+  "name": "express-boilerplate",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon server.js",
+    "migration:create": "npx sequelize-cli migration:generate --config src/config/config.js --migrations-path src/migrations --name",
+    "migration:run": "npx sequelize-cli db:migrate --config src/config/config.js --migrations-path src/migrations",
+    "migration:undo": "npx sequelize-cli db:migrate:undo --config src/config/config.js --migrations-path src/migrations",
+    "seeder:create": "npx sequelize-cli seed:generate --config src/config/config.js --name",
+    "seeder:run": "npx sequelize-cli db:seed:all --config src/config/config.js",
+    "seeder:undo": "npx sequelize-cli db:seed:undo --config src/config/config.js"
+  },
+  "author": "Karthik",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cloudinary": "^2.6.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "googleapis": "^148.0.0",
+    "helmet": "^8.1.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.2",
+    "moment": "^2.30.1",
+    "moment-timezone": "^0.5.48",
+    "nodemailer": "^6.10.0",
+    "pg": "^8.14.1",
+    "pug": "^3.0.3",
+    "redis": "^4.7.0",
+    "sequelize": "^6.37.7"
+  },
+  "devDependencies": {
+    "eslint": "^5.16.0",
+    "nodemon": "^2.0.16"
+  }
+}
