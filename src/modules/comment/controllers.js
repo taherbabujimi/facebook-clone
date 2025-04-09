@@ -145,11 +145,11 @@ module.exports.deleteComment = async (req, res) => {
       return errorResponseWithoutData(res, messages.commentNotExists, 400);
     }
 
+    successResponseWithoutData(res, messages.commentDeleteSuccess, 200);
+
     await Models.Comment.destroy({
       where: { id: commentId },
     });
-
-    return successResponseWithoutData(res, messages.commentDeleteSuccess, 200);
   } catch (error) {
     console.log(error);
 

@@ -5,7 +5,18 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 module.exports = (sequelize, DataTypes) => {
-  class User extends Model {}
+  class User extends Model {
+    static associate(models) {
+      this.hasMany(models.Post, { foreignKey: "createdBy" });
+      this.hasMany(models.Comment, { foreignKey: "userId" });
+      this.hasMany(models.Like, { foreignKey: "userId" });
+      this.hasMany(models.Friend, { foreignKey: "userId", as: "Requests" });
+      this.hasMany(models.Friend, {
+        foreignKey: "friendId",
+        as: "SentRequests",
+      });
+    }
+  }
   User.init(
     {
       id: {
@@ -60,6 +71,10 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.BOOLEAN,
         defaultValue: false,
         allowNull: false,
+      },
+      profilePublicId: {
+        type: DataTypes.STRING,
+        unique: true,
       },
     },
     {

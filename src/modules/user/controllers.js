@@ -2,6 +2,8 @@ const path = require("path");
 const pug = require("pug");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
+const { Op } = require("sequelize");
+const { cloudinary } = require("../../config/cloudinary");
 const Models = require("../../models/index");
 const {
   errorResponseWithoutData,
@@ -14,6 +16,7 @@ const {
   userLoginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  searchUserSchema,
 } = require("./validations");
 const { countries } = require("../../services/country");
 const { generateForgotPasswordToken } = require("./helpers");
@@ -43,6 +46,7 @@ module.exports.registerUser = async (req, res) => {
       hobbies,
       countryCode,
       timezone,
+      profilePublicId,
     } = req.body;
 
     const userExists = await Models.User.findOne({
@@ -95,6 +99,7 @@ module.exports.registerUser = async (req, res) => {
       region,
       countryCode,
       timezone,
+      profilePublicId,
     });
 
     successResponseData(res, user, 200, messages.verifyEmailSentSuccess);
@@ -338,5 +343,49 @@ module.exports.resetPassword = async (req, res) => {
       `${messages.somethingWentWrongResetingPassword}: ${error}`,
       400
     );
+  }
+};
+
+module.exports.searchUser = async (req, res) => {
+  try {
+    const { page, pageSize } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(pageSize) || 0;
+    const limit = parseInt(pageSize || 8);
+
+    const validationResponse = searchUserSchema(req.body, res);
+    if (validationResponse !== false) return;
+
+    const { username } = req.body;
+
+    const user = await Models.User.findAll({
+      where: { username: { [Op.like]: `%${username}%` }, isVerified: true },
+      attributes: ["username", "profilePublicId"],
+      limit,
+      offset,
+    });
+
+    const data = [];
+
+    user.map(async (item) => {
+      let profilePic;
+
+      if (item.dataValues.profilePublicId === null) {
+        profilePic = null;
+      } else {
+        profilePic = cloudinary.url(item.dataValues.profilePublicId);
+      }
+
+      data.push({
+        username: item.dataValues.username,
+        profilePic,
+      });
+    });
+
+    return successResponseData(res, data, 200, messages.userFoundSuccess);
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorSearchUser, 400);
   }
 };

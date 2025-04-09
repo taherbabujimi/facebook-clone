@@ -24,6 +24,7 @@ const userRegisterSchema = (body, res) => {
         .string()
         .valid(...timezone.tz.names())
         .required(),
+      profilePublicId: joi.string(),
     });
 
     const validationResult = Schema.validate(body);
@@ -133,9 +134,38 @@ const resetPasswordSchema = (body, res) => {
   }
 };
 
+const searchUserSchema = (body, res) => {
+  try {
+    const Schema = joi.object({
+      username: joi.string().min(3).max(30).required(),
+    });
+
+    const validationResult = Schema.validate(body);
+
+    if (validationResult.error) {
+      return errorResponseWithoutData(
+        res,
+        `${commonMessages.errorWhileValidatingValues}: ${validationResult.error}`,
+        400
+      );
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(
+      res,
+      commonMessages.errorWhileValidatingValues,
+      400
+    );
+  }
+};
+
 module.exports = {
   userRegisterSchema,
   userLoginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  searchUserSchema,
 };

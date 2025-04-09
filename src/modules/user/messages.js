@@ -22,6 +22,8 @@ let messages = {
   invalidVerifyEmailRequest: "Invalid verify email request.",
   emailVerifiedSuccessfully: "User email verified successfully.",
   userNotVerified: "User email not verified, please verify your email first.",
+  errorSearchUser: "Error while searching user.",
+  userFoundSuccess: "Searched users fetched successfully.",
 };
 
 module.exports = {

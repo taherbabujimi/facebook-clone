@@ -56,17 +56,5 @@ module.exports = (sequelize, DataTypes) => {
     }
   );
 
-  // In your Comment model
-  Comment.beforeDestroy(async (comment, options) => {
-    const childComments = await Comment.findAll({
-      where: { parentId: comment.id },
-    });
-
-    // First recursively destroy all children
-    for (const child of childComments) {
-      await child.destroy(options);
-    }
-  });
-
   return Comment;
 };
