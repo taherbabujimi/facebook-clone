@@ -104,8 +104,16 @@ module.exports.getPost = async (req, res) => {
           as: "Likes",
           attributes: [],
         },
+        {
+          model: Models.Comment,
+          where: {
+            parentId: null,
+          },
+          limit: 10, // Limit to 15 comments
+          separate: true, // This is important to apply the limit correctly
+        },
       ],
-      group: ["Post.id"],
+      group: ["Post.id"], // Remove Comments.id from here as we're using separate:true
     });
 
     if (!post) {
