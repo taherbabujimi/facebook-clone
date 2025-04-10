@@ -33,7 +33,7 @@ module.exports = (sequelize, DataTypes) => {
         references: { model: "users", key: "id" },
       },
       status: {
-        type: DataTypes.ENUM(requestStatus),
+        type: DataTypes.ENUM(...requestStatus),
         defaultValue: requestStatus[0],
         allowNull: false,
       },

@@ -1,27 +1,44 @@
 "use strict";
-const { requestStatus } = require("../services/constants");
+const {
+  notificationType,
+  entityType,
+  notificationStatus,
+} = require("../services/constants");
 
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable("friends", {
+    await queryInterface.createTable("notifications", {
       id: {
         type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
         allowNull: false,
       },
-      userId: {
+      recipientId: {
         type: Sequelize.INTEGER,
         references: { model: "users", key: "id" },
         allowNull: false,
       },
-      friendId: {
+      senderId: {
         type: Sequelize.INTEGER,
         references: { model: "users", key: "id" },
+        allowNull: false,
+      },
+      type: {
+        type: Sequelize.ENUM(...notificationType),
+        allowNull: false,
+      },
+      entityType: {
+        type: Sequelize.ENUM(...entityType),
+        allowNull: false,
+      },
+      entityId: {
+        type: Sequelize.INTEGER,
+        allowNull: false,
       },
       status: {
-        type: Sequelize.ENUM(...requestStatus),
-        defaultValue: requestStatus[0],
+        type: Sequelize.ENUM(...notificationStatus),
+        defaultValue: notificationStatus[0],
         allowNull: false,
       },
       createdAt: {
@@ -33,15 +50,9 @@ module.exports = {
         allowNull: false,
       },
     });
-
-    await queryInterface.addConstraint("friends", {
-      fields: ["userId", "friendId"],
-      type: "unique",
-      name: "custom_unique_constraint_friends",
-    });
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable("friends");
+    await queryInterface.dropTable("notifications");
   },
 };

@@ -5,8 +5,11 @@ const {
   successResponseWithoutData,
 } = require("../../services/responses");
 const { messages } = require("./messages");
+const { notificationType, entityType } = require("../../services/constants");
+const { sequelize } = require("../../models/index");
 
 module.exports.likeUnlikePost = async (req, res) => {
+  let transaction;
   try {
     const { postId } = req.query;
 
@@ -29,16 +32,54 @@ module.exports.likeUnlikePost = async (req, res) => {
         where: { userId: req.user.id, postId },
       });
 
-      return successResponseWithoutData(res, messages.postUnlikedSuccess, 400);
+      return successResponseWithoutData(res, messages.postUnlikedSuccess, 200);
     }
 
-    await Models.Like.create({
-      userId: req.user.id,
-      postId,
+    transaction = await sequelize.transaction();
+
+    await Models.Like.create(
+      {
+        userId: req.user.id,
+        postId,
+      },
+      { transaction }
+    );
+
+    const existingNotification = await Models.Notification.findOne({
+      where: {
+        recipientId: postExists.createdBy,
+        senderId: req.user.id,
+        type: notificationType[2],
+        entityType: "like",
+        entityId: postExists.id,
+      },
     });
 
-    return successResponseWithoutData(res, messages.postLikedSuccess, 400);
+    let shouldCreateNotification = true;
+
+    if (existingNotification) {
+      const differenceInMS =
+        new Date() - new Date(existingNotification.createdAt);
+      shouldCreateNotification = differenceInMS / (1000 * 60) >= 30;
+    }
+
+    if (shouldCreateNotification) {
+      await Models.Notification.create(
+        {
+          recipientId: postExists.createdBy,
+          senderId: req.user.id,
+          type: notificationType[2],
+          entityType: "like",
+          entityId: postExists.id,
+        },
+        { transaction }
+      );
+    }
+
+    await transaction.commit();
+    return successResponseWithoutData(res, messages.postLikedSuccess, 200);
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.log(error);
     return errorResponseWithoutData(res, messages.errorAddLike, 400);
   }

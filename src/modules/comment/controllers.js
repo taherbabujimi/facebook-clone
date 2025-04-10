@@ -11,43 +11,84 @@ const {
   deleteCommentSchema,
 } = require("./validations");
 const Models = require("../../models/index");
+const { notificationType, entityType } = require("../../services/constants");
+const { sequelize } = require("../../models/index");
 
 module.exports.addComment = async (req, res) => {
+  let transaction;
+
   try {
+    // Validate request
     const validationResponse = addCommentSchema(req.body, res);
     if (validationResponse !== false) return;
 
     const { postId, parentId, content } = req.body;
 
+    // Check if post exists
     const postExists = await Models.Post.findByPk(postId);
-
     if (!postExists) {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
     }
 
-    if (parentId !== undefined) {
-      const commentExists = await Models.Comment.findByPk(parentId);
+    // Start transaction
+    transaction = await sequelize.transaction();
 
-      if (!commentExists) {
-        return errorResponseWithoutData(res, messages.commentNotExists, 400);
-      }
-    }
-
-    const comment = await Models.Comment.create({
-      postId,
-      parentId,
-      content,
-      userId: req.user.id,
-    });
+    // Create comment
+    const comment = await Models.Comment.create(
+      {
+        postId,
+        parentId,
+        content,
+        userId: req.user.id,
+      },
+      { transaction }
+    );
 
     if (!comment) {
+      await transaction.rollback();
       return errorResponseWithoutData(res, messages.errorAddingComment, 400);
     }
 
+    // Handle notifications
+    if (parentId !== undefined) {
+      const commentExists = await Models.Comment.findByPk(parentId);
+      if (!commentExists) {
+        await transaction.rollback();
+        return errorResponseWithoutData(res, messages.commentNotExists, 400);
+      }
+
+      await Models.Notification.create(
+        {
+          recipientId: commentExists.userId,
+          senderId: req.user.id,
+          type: notificationType[4], // reply to comment
+          entityType: entityType[2], // comment
+          entityId: commentExists.id,
+        },
+        { transaction }
+      );
+    } else {
+      await Models.Notification.create(
+        {
+          recipientId: postExists.createdBy,
+          senderId: req.user.id,
+          type: notificationType[3], // comment on post
+          entityType: entityType[2], // comment
+          entityId: postExists.id,
+        },
+        { transaction }
+      );
+    }
+
+    // Commit transaction
+    await transaction.commit();
+
     return successResponseData(res, comment, 200, messages.addCommentSuccess);
   } catch (error) {
-    console.log(error);
+    // Rollback transaction if it exists
+    if (transaction) await transaction.rollback();
 
+    console.log(error);
     return errorResponseWithoutData(res, messages.errorAddingComment, 400);
   }
 };
