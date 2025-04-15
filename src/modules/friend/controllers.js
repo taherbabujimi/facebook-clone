@@ -14,6 +14,12 @@ const { cloudinary } = require("../../config/cloudinary");
 const { requestTypes } = require("./constants");
 const { notificationType, entityType } = require("../../services/constants");
 const { sequelize } = require("../../models/index");
+const WEIGHTS = {
+  MUTUAL_FRIENDS: 8, // Weight per mutual friend
+  SAME_COUNTRY: 3, // Weight for same country
+  SHARED_HOBBY: 2, // Weight per shared hobby
+  SHARED_INTEREST: 2, // Weight per shared interest
+};
 
 module.exports.sendFriendRequest = async (req, res) => {
   let transaction;
@@ -40,8 +46,6 @@ module.exports.sendFriendRequest = async (req, res) => {
       },
     });
 
-    console.log("ALREADY FRIEND: ", alreadyFriend);
-
     if (alreadyFriend) {
       return errorResponseWithoutData(res, messages.alreadyFriend, 400);
     }
@@ -54,13 +58,9 @@ module.exports.sendFriendRequest = async (req, res) => {
       return errorResponseWithoutData(res, messages.requestAlreadyExist, 400);
     }
 
-    console.log("REQUEST EXIST: ", requestExist);
-
     const user = await Models.User.findOne({
       where: { id: friendId, isVerified: true },
     });
-
-    console.log("USER: ", user);
 
     if (!user) {
       return errorResponseWithoutData(res, messages.userNotExists, 400);
@@ -75,8 +75,6 @@ module.exports.sendFriendRequest = async (req, res) => {
       },
       { transaction }
     );
-
-    console.log("FRIEND: ", friendRequest);
 
     if (!friendRequest) {
       await transaction.rollback();
@@ -159,7 +157,11 @@ module.exports.getFriendRequests = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorGettingRequests, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingRequests}: ${error}`,
+      400
+    );
   }
 };
 
@@ -246,8 +248,189 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
 
     return errorResponseWithoutData(
       res,
-      messages.errorAcceptRejectRequest,
+      `${messages.errorAcceptRejectRequest}: ${error}`,
       400
     );
   }
 };
+
+module.exports.getRecommendedFriends = async (req, res) => {
+  try {
+    const userId = req.user.id; // Assuming user is attached by auth middleware
+
+    const limit = parseInt(req.query.limit) || 10; // number of items per page
+    const currentPage = parseInt(req.query.page) || 1; // current page number (starts from 1)
+    const offset = (currentPage - 1) * limit; // calculate the offset
+
+    // Get existing friends and friend requests
+    const existingConnections = await Models.Friend.findAll({
+      where: {
+        [Op.or]: [{ userId: userId }, { friendId: userId }],
+      },
+      attributes: ["userId", "friendId"],
+    });
+
+    // Create a set of users to exclude (current user + existing connections)
+    const excludeUserIds = new Set([userId]);
+    existingConnections.forEach((conn) => {
+      excludeUserIds.add(conn.userId);
+      excludeUserIds.add(conn.friendId);
+    });
+
+    // Get all potential users
+    const potentialFriends = await Models.User.findAll({
+      where: {
+        id: { [Op.notIn]: Array.from(excludeUserIds) },
+        isVerified: true,
+      },
+      attributes: [
+        "id",
+        "username",
+        "countryCode",
+        "interestedTopics",
+        "hobbies",
+        "profilePublicId",
+      ],
+      order: [sequelize.literal("RANDOM()")], // Use PostgreSQL's RANDOM() function to randomize the order
+      limit: 100, // Fetch 100 random users
+    });
+
+    // Get mutual friends for each potential friend
+    const mutualFriendsMap = await getMutualFriends(
+      userId,
+      potentialFriends.map((user) => user.id)
+    );
+
+    // Score each potential friend
+    const scoredRecommendations = potentialFriends.map((user) => {
+      const scoreData = calculateRecommendationScore(
+        req.user,
+        user,
+        mutualFriendsMap.get(user.id) || 0
+      );
+
+      return {
+        user: {
+          id: user.id,
+          username: user.username,
+          profileURL: cloudinary.url(user.profilePublicId),
+          countryCode: user.countryCode,
+        },
+        scoreData,
+        mutualFriendsCount: mutualFriendsMap.get(user.id) || 0,
+      };
+    });
+
+    // Sort by score (highest first) and limit results
+    const recommendations = scoredRecommendations
+      .sort((a, b) => b.scoreData.score - a.scoreData.score)
+      .slice(offset, offset + limit);
+
+    return successResponseData(
+      res,
+      recommendations,
+      200,
+      messages.fetchedRecommendedFriendSuccess
+    );
+  } catch (error) {
+    console.error("Friend recommendation error:", error);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingRecommendations}: ${error}`,
+      400
+    );
+  }
+};
+
+async function getMutualFriends(userId, potentialFriendIds) {
+  // Get all the current user's friends
+  const userFriends = await Models.Friend.findAll({
+    where: {
+      [Op.or]: [
+        { userId: userId, status: "confirm" },
+        { friendId: userId, status: "confirm" },
+      ],
+    },
+    attributes: ["userId", "friendId"],
+  });
+
+  // Create a set of the user's friends
+  const userFriendIds = new Set();
+  userFriends.forEach((friendship) => {
+    const friendId =
+      friendship.userId === userId ? friendship.friendId : friendship.userId;
+    userFriendIds.add(friendId);
+  });
+
+  // Get all friendships involving potential friends
+  const potentialFriendships = await Models.Friend.findAll({
+    where: {
+      [Op.or]: [
+        { userId: { [Op.in]: potentialFriendIds }, status: "confirm" },
+        { friendId: { [Op.in]: potentialFriendIds }, status: "confirm" },
+      ],
+    },
+    attributes: ["userId", "friendId"],
+  });
+
+  // Calculate mutual friends count for each potential friend
+  const mutualFriendsMap = new Map();
+
+  potentialFriendships.forEach((friendship) => {
+    const potentialFriendId = potentialFriendIds.includes(friendship.userId)
+      ? friendship.userId
+      : friendship.friendId;
+
+    const theirFriendId =
+      friendship.userId === potentialFriendId
+        ? friendship.friendId
+        : friendship.userId;
+
+    if (userFriendIds.has(theirFriendId)) {
+      // Increment mutual friend count
+      mutualFriendsMap.set(
+        potentialFriendId,
+        (mutualFriendsMap.get(potentialFriendId) || 0) + 1
+      );
+    }
+  });
+
+  return mutualFriendsMap;
+}
+
+function calculateRecommendationScore(
+  currentUser,
+  potentialFriend,
+  mutualFriendsCount
+) {
+  let score = 0;
+  let noOfMutualHobbies = 0;
+  let noOfMutualInterests = 0;
+
+  // Add score for mutual friends
+  score += mutualFriendsCount * WEIGHTS.MUTUAL_FRIENDS;
+
+  // Add score for same country
+  if (currentUser.countryCode === potentialFriend.countryCode) {
+    score += WEIGHTS.SAME_COUNTRY;
+  }
+
+  // Add score for shared hobbies
+  const sharedHobbies = currentUser.hobbies.filter((hobby) =>
+    potentialFriend.hobbies.includes(hobby)
+  );
+
+  noOfMutualHobbies = sharedHobbies.length;
+  score += sharedHobbies.length * WEIGHTS.SHARED_HOBBY;
+
+  // Add score for shared interests
+  const sharedInterests = currentUser.interestedTopics.filter((interest) =>
+    potentialFriend.interestedTopics.includes(interest)
+  );
+
+  noOfMutualInterests = sharedInterests.length;
+  score += sharedInterests.length * WEIGHTS.SHARED_INTEREST;
+
+  return { score: score, noOfMutualHobbies, noOfMutualInterests };
+}

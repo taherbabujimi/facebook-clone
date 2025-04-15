@@ -6,7 +6,18 @@ const {
 } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
-  class Notification extends Model {}
+  class Notification extends Model {
+    static associate(models) {
+      this.belongsTo(models.User, {
+        foreignKey: "recipientId",
+        as: "recipient",
+      });
+      this.belongsTo(models.User, {
+        foreignKey: "senderId",
+        as: "sender",
+      });
+    }
+  }
 
   Notification.init(
     {

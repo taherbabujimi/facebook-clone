@@ -15,6 +15,14 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "friendId",
         as: "SentRequests",
       });
+      this.hasMany(models.Notification, {
+        foreignKey: "recipientId",
+        as: "notificationFor",
+      });
+      this.hasMany(models.Notification, {
+        foreignKey: "senderId",
+        as: "notificationBy",
+      });
     }
   }
   User.init(

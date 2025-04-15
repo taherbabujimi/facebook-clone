@@ -4,11 +4,13 @@ const postRoute = require("../modules/post/routes");
 const likeRoute = require("../modules/like/routes");
 const commentRoute = require("../modules/comment/routes");
 const friendRoute = require("../modules/friend/routes");
+const notificationRoute = require("../modules/notification/routes");
 
 IndexRoute.use("/v1/user", userRoute);
 IndexRoute.use("/v1/post", postRoute);
 IndexRoute.use("/v1/like", likeRoute);
 IndexRoute.use("/v1/comment", commentRoute);
 IndexRoute.use("/v1/friend", friendRoute);
+IndexRoute.use("/v1/notification", notificationRoute);
 
 module.exports = IndexRoute;

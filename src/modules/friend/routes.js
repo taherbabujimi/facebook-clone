@@ -3,8 +3,8 @@ const { verifyJWT } = require("../../middlewares/authMiddleware");
 const {
   sendFriendRequest,
   acceptRejectFriendRequest,
-  rejectFriendRequest,
   getFriendRequests,
+  getRecommendedFriends,
 } = require("./controllers");
 
 friendRoute.post("/sendFriendRequest", verifyJWT, sendFriendRequest);
@@ -15,8 +15,8 @@ friendRoute.put(
   acceptRejectFriendRequest
 );
 
-// friendRoute.delete("/rejectFriendRequest", verifyJWT, rejectFriendRequest);
-
 friendRoute.get("/getFriendRequests", verifyJWT, getFriendRequests);
+
+friendRoute.get("/getRecommendedFriends", verifyJWT, getRecommendedFriends);
 
 module.exports = friendRoute;

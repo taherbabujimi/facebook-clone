@@ -1,5 +1,6 @@
 require("dotenv").config();
 const { client } = require("./src/config/redis");
+const helmet = require("helmet");
 const IndexRoute = require("./src/routers/IndexRoute");
 const Express = require("express");
 const app = Express();
@@ -8,6 +9,7 @@ const app = Express();
 const port = process.env.PORT || 7000;
 
 // For parsing the express payloads
+app.use(helmet());
 app.use(Express.json());
 app.use(Express.urlencoded({ extended: true }));
 

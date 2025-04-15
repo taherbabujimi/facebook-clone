@@ -18,6 +18,9 @@ const messages = {
   errorAcceptRejectRequest:
     "Error while accepting or rejecting friend request.",
   cannotSendRequestToYourself: "You cannot send friend request to yourself.",
+  fetchedRecommendedFriendSuccess:
+    "Successfully fetched all recommended friends.",
+  errorGettingRecommendations: "Failed to get friend recommendations",
 };
 
 module.exports = {
