@@ -58,24 +58,47 @@ module.exports.getUploadSignature = async (req, res) => {
   }
 };
 
-module.exports.addPost = async (req, res) => {
+module.exports.addRepostPost = async (req, res) => {
   try {
     const validationResponse = addPostSchema(req.body, res);
     if (validationResponse !== false) return;
 
-    const { filePublicId, status, caption, location } = req.body;
-
-    const post = await Models.Post.create({
-      createdBy: req.user.id,
-      filePublicId,
+    const {
       status,
       caption,
       location,
-    });
+      originalPostId,
+      filePublicId,
+      fileResourceType,
+    } = req.body;
 
-    if (!post) {
-      return errorResponseWithoutData(res, messages.errorAddingPost, 400);
+    // Create post data object with common fields
+    const postData = {
+      createdBy: req.user.id,
+      status,
+      caption,
+      location,
+      filePublicId,
+      fileResourceType,
+    };
+
+    // Handle repost case
+    if (originalPostId !== undefined) {
+      const originalPost = await Models.Post.findByPk(originalPostId);
+
+      if (!originalPost) {
+        return errorResponseWithoutData(res, messages.postNotExists, 400);
+      }
+
+      // Set originalPostId
+      postData.originalPostId = originalPostId;
+
+      // Set rootPostId based on original post
+      postData.rootPostId = originalPost.rootPostId || originalPost.id;
     }
+
+    // Create the post
+    const post = await Models.Post.create(postData);
 
     return successResponseData(res, post, 200, messages.postAddSuccess);
   } catch (error) {
@@ -94,8 +117,19 @@ module.exports.getPost = async (req, res) => {
 
     const post = await Models.Post.findByPk(id, {
       attributes: {
+        exclude: [
+          "createdBy",
+          "originalPostId",
+          "rootPostId",
+          "status",
+          "filePublicId",
+        ],
         include: [
           [Sequelize.fn("COUNT", Sequelize.col("Likes.id")), "likesCount"],
+          [
+            Sequelize.fn("COUNT", Sequelize.col("Comments.id")),
+            "commentsCount",
+          ],
         ],
       },
       include: [
@@ -109,23 +143,36 @@ module.exports.getPost = async (req, res) => {
           where: {
             parentId: null,
           },
-          limit: 10, // Limit to 15 comments
-          separate: true, // This is important to apply the limit correctly
+          as: "Comments",
+          attributes: [],
+          required: false,
+        },
+        {
+          model: Models.Post,
+          as: "originalPost",
+          attributes: ["id", "caption", "location", "createdAt", "updatedAt"],
+        },
+        {
+          model: Models.Post,
+          as: "rootPost",
+          attributes: ["id", "filePublicId"],
         },
       ],
-      group: ["Post.id"], // Remove Comments.id from here as we're using separate:true
+      group: ["Post.id", "originalPost.id", "rootPost.id"],
     });
+
+    let data = post;
+
+    if (post.dataValues.rootPost === null) {
+      data = {
+        ...post.dataValues,
+        rootPost: "the original content is no longer available.",
+      };
+    }
 
     if (!post) {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
     }
-
-    const url = cloudinary.url(post.filePublicId);
-
-    const data = {
-      url,
-      ...post.dataValues,
-    };
 
     return successResponseData(res, data, 200, messages.getPostSuccess);
   } catch (error) {
@@ -196,12 +243,30 @@ module.exports.deletePost = async (req, res) => {
       return errorResponseWithoutData(res, messages.postIsNotYours, 400);
     }
 
-    await cloudinary.uploader.destroy(
-      postExists.filePublicId,
-      (error, result) => {
-        console.log(error, result);
+    if (
+      postExists.dataValues.filePublicId !== null &&
+      postExists.dataValues.fileResourceType !== null
+    ) {
+      try {
+        const result = await cloudinary.uploader.destroy(
+          postExists.dataValues.filePublicId,
+          { resource_type: postExists.dataValues.fileResourceType }
+        );
+        console.log("Cloudinary delete result:", result);
+
+        // Check if Cloudinary couldn't find the file
+        if (result.result === "not found") {
+          throw new Error("File not found in Cloudinary");
+        }
+      } catch (cloudinaryError) {
+        console.error("Error deleting from Cloudinary:", cloudinaryError);
+        return errorResponseWithoutData(
+          res,
+          "Error deleting file from cloud storage",
+          400
+        );
       }
-    );
+    }
 
     await Models.Post.destroy({
       where: { id },

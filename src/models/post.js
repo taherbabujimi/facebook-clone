@@ -1,5 +1,6 @@
 const { Model } = require("sequelize");
 const { STATUS } = require("../modules/post/constants");
+const { FILE_TYPE } = require("../modules/post/constants");
 
 module.exports = (sequelize, DataTypes) => {
   class Post extends Model {
@@ -10,6 +11,26 @@ module.exports = (sequelize, DataTypes) => {
 
       this.hasMany(models.Comment, {
         foreignKey: "postId",
+      });
+
+      this.hasMany(models.Post, {
+        foreignKey: "originalPostId",
+        as: "reposts",
+      });
+
+      this.belongsTo(models.Post, {
+        foreignKey: "originalPostId",
+        as: "originalPost",
+      });
+
+      this.hasMany(models.Post, {
+        foreignKey: "rootPostId",
+        as: "allReposts",
+      });
+
+      this.belongsTo(models.Post, {
+        foreignKey: "rootPostId",
+        as: "rootPost",
       });
     }
   }
@@ -29,8 +50,10 @@ module.exports = (sequelize, DataTypes) => {
       },
       filePublicId: {
         type: DataTypes.STRING,
-        allowNull: false,
         unique: true,
+      },
+      fileResourceType: {
+        type: DataTypes.ENUM(...FILE_TYPE),
       },
       status: {
         type: DataTypes.ENUM(...STATUS),
@@ -42,7 +65,12 @@ module.exports = (sequelize, DataTypes) => {
       },
       location: {
         type: DataTypes.STRING,
-        allowNull: false,
+      },
+      originalPostId: {
+        type: DataTypes.INTEGER,
+      },
+      rootPostId: {
+        type: DataTypes.INTEGER,
       },
     },
     {

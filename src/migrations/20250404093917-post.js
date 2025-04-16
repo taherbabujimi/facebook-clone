@@ -1,5 +1,6 @@
 "use strict";
 const { STATUS } = require("../modules/post/constants");
+const { FILE_TYPE } = require("../modules/post/constants");
 
 module.exports = {
   async up(queryInterface, Sequelize) {
@@ -17,8 +18,10 @@ module.exports = {
       },
       filePublicId: {
         type: Sequelize.STRING,
-        allowNull: false,
         unique: true,
+      },
+      fileResourceType: {
+        type: Sequelize.ENUM(...FILE_TYPE),
       },
       status: {
         type: Sequelize.ENUM(...STATUS),
@@ -30,7 +33,14 @@ module.exports = {
       },
       location: {
         type: Sequelize.STRING,
-        allowNull: false,
+      },
+      originalPostId: {
+        type: Sequelize.INTEGER,
+        // references: { model: "posts", key: "id" },
+      },
+      rootPostId: {
+        type: Sequelize.INTEGER,
+        // references: { model: "posts", key: "id" },
       },
       createdAt: {
         type: Sequelize.DATE,

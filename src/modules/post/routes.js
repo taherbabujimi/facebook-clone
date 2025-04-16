@@ -1,6 +1,6 @@
 const {
   getUploadSignature,
-  addPost,
+  addRepostPost,
   getPost,
   updatePost,
   deletePost,
@@ -11,7 +11,7 @@ const postRoute = require("express").Router();
 
 postRoute.get("/getUploadSignature", getUploadSignature);
 
-postRoute.post("/addPost", verifyJWT, addPost);
+postRoute.post("/addRepostPost", verifyJWT, addRepostPost);
 
 postRoute.get("/getPost", verifyJWT, getPost);
 

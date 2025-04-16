@@ -6,7 +6,17 @@ const { STATUS } = require("./constants");
 const addPostSchema = (body, res) => {
   try {
     const Schema = joi.object({
-      filePublicId: joi.string().min(3).required(),
+      originalPostId: joi.number(),
+      filePublicId: joi.alternatives().conditional("originalPostId", {
+        is: joi.exist(),
+        then: joi.forbidden(),
+        otherwise: joi.string().min(3).required(),
+      }),
+      fileResourceType: joi.alternatives().conditional("originalPostId", {
+        is: joi.exist(),
+        then: joi.forbidden(),
+        otherwise: joi.string().valid("image", "video").required(),
+      }),
       status: joi.string().valid(...STATUS),
       caption: joi.string().max(300),
       location: joi.string(),
