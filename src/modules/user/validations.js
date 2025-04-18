@@ -162,10 +162,43 @@ const searchUserSchema = (body, res) => {
   }
 };
 
+const updateUserProfileSchema = (body, res) => {
+  try {
+    const Schema = joi.object({
+      username: joi.string().min(3).max(30),
+      occupation: joi.number(),
+      interestedTopics: joi.array().items(joi.number()),
+      hobbies: joi.array().items(joi.number()),
+      profilePublicId: joi.string(),
+    });
+
+    const validationResult = Schema.validate(body);
+
+    if (validationResult.error) {
+      return errorResponseWithoutData(
+        res,
+        `${commonMessages.errorWhileValidatingValues}: ${validationResult.error}`,
+        400
+      );
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(
+      res,
+      commonMessages.errorWhileValidatingValues,
+      400
+    );
+  }
+};
+
 module.exports = {
   userRegisterSchema,
   userLoginSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
   searchUserSchema,
+  updateUserProfileSchema,
 };

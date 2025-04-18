@@ -20,6 +20,7 @@ const addPostSchema = (body, res) => {
       status: joi.string().valid(...STATUS),
       caption: joi.string().max(300),
       location: joi.string(),
+      pageId: joi.number(),
     });
 
     const validationResult = Schema.validate(body);
@@ -78,7 +79,57 @@ const updatePostSchema = (body, res) => {
   }
 };
 
+const getPostsSchema = (body, res) => {
+  try {
+    const Schema = joi
+      .object({
+        profileId: joi.number().allow(null),
+        pageId: joi.number().allow(null),
+      })
+      .or("profileId", "pageId") // At least one must be present
+      .custom((obj, helpers) => {
+        const profileIdNonNull =
+          obj.profileId !== undefined && obj.profileId !== null;
+        const pageIdNonNull = obj.pageId !== undefined && obj.pageId !== null;
+
+        // Check that exactly one is non-null
+        if (
+          (profileIdNonNull && pageIdNonNull) ||
+          (!profileIdNonNull && !pageIdNonNull)
+        ) {
+          return helpers.message(
+            "Exactly one of profileId or pageId must be non-null"
+          );
+        }
+        return obj;
+      });
+
+    const validationResult = Schema.validate(body);
+
+    if (validationResult.error) {
+      console.log(validationResult.error);
+
+      return errorResponseWithoutData(
+        res,
+        `${commonMessages.errorWhileValidatingValues}: ${validationResult.error}`,
+        400
+      );
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(
+      res,
+      commonMessages.errorWhileValidatingValues,
+      400
+    );
+  }
+};
+
 module.exports = {
   addPostSchema,
   updatePostSchema,
+  getPostsSchema,
 };

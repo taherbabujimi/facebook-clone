@@ -32,6 +32,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "rootPostId",
         as: "rootPost",
       });
+
+      this.belongsTo(models.Page, {
+        foreignKey: "pageId",
+        as: "pagePost",
+      });
     }
   }
 
@@ -71,6 +76,13 @@ module.exports = (sequelize, DataTypes) => {
       },
       rootPostId: {
         type: DataTypes.INTEGER,
+      },
+      pageId: {
+        type: DataTypes.INTEGER,
+        references: {
+          model: "pages",
+          key: "id",
+        },
       },
     },
     {

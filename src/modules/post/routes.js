@@ -1,9 +1,10 @@
 const {
   getUploadSignature,
   addRepostPost,
-  getPost,
+  getSinglePost,
   updatePost,
   deletePost,
+  getPosts,
 } = require("./controllers");
 const { verifyJWT } = require("../../middlewares/authMiddleware");
 
@@ -13,10 +14,12 @@ postRoute.get("/getUploadSignature", getUploadSignature);
 
 postRoute.post("/addRepostPost", verifyJWT, addRepostPost);
 
-postRoute.get("/getPost", verifyJWT, getPost);
+postRoute.get("/getSinglePost", verifyJWT, getSinglePost);
 
 postRoute.put("/updatePost", verifyJWT, updatePost);
 
 postRoute.delete("/deletePost", verifyJWT, deletePost);
+
+postRoute.get("/getPosts", verifyJWT, getPosts);
 
 module.exports = postRoute;

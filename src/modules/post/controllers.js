@@ -6,7 +6,11 @@ const {
   successResponseWithoutData,
 } = require("../../services/responses");
 const { messages } = require("./messages");
-const { addPostSchema, updatePostSchema } = require("./validations");
+const {
+  addPostSchema,
+  updatePostSchema,
+  getPostsSchema,
+} = require("./validations");
 const { createUploadSignature } = require("../../services/helpers");
 
 const { cloudinary } = require("../../config/cloudinary");
@@ -36,8 +40,6 @@ module.exports.getUploadSignature = async (req, res) => {
         api_key: process.env.CLOUDINARY_API_KEY,
       }
     );
-
-    console.log("SIGNATURE: ", signature);
 
     return successResponseData(
       res,
@@ -70,6 +72,7 @@ module.exports.addRepostPost = async (req, res) => {
       originalPostId,
       filePublicId,
       fileResourceType,
+      pageId,
     } = req.body;
 
     // Create post data object with common fields
@@ -81,6 +84,20 @@ module.exports.addRepostPost = async (req, res) => {
       filePublicId,
       fileResourceType,
     };
+
+    if (pageId !== undefined) {
+      const pageExists = await Models.Page.findByPk(pageId);
+
+      if (!pageExists) {
+        return errorResponseWithoutData(res, messages.pageNotExists, 400);
+      }
+
+      if (pageExists.pageOwner !== req.user.id) {
+        return errorResponseWithoutData(res, messages.pageNotYours, 400);
+      }
+
+      postData.pageId = pageId;
+    }
 
     // Handle repost case
     if (originalPostId !== undefined) {
@@ -107,7 +124,7 @@ module.exports.addRepostPost = async (req, res) => {
   }
 };
 
-module.exports.getPost = async (req, res) => {
+module.exports.getSinglePost = async (req, res) => {
   try {
     const { id } = req.query;
 
@@ -160,6 +177,10 @@ module.exports.getPost = async (req, res) => {
       ],
       group: ["Post.id", "originalPost.id", "rootPost.id"],
     });
+
+    if (!post) {
+      return errorResponseWithoutData(res, messages.postNotExists, 400);
+    }
 
     let data = post;
 
@@ -276,5 +297,145 @@ module.exports.deletePost = async (req, res) => {
   } catch (error) {
     console.log(error);
     return errorResponseWithoutData(res, messages.errorDeletePost, 400);
+  }
+};
+
+module.exports.getPosts = async (req, res) => {
+  try {
+    const validationResponse = getPostsSchema(req.body, res);
+    if (validationResponse !== false) return;
+
+    const { profileId, pageId } = req.body;
+
+    const { pageSize, page } = req.query;
+
+    const offset = (parseInt(page) - 1) * parseInt(pageSize) || 0;
+    const limit = parseInt(pageSize || 10);
+
+    if (profileId !== undefined) {
+     const posts = await Models.User.findByPk(profileId, {
+       attributes: ["id"],
+       include: [
+         {
+           model: Models.Post,
+           where: { pageId: null },
+           attributes: {
+             exclude: [
+               "createdBy",
+               "originalPostId",
+               "rootPostId",
+               "status",
+               "filePublicId",
+             ],
+             include: [
+               [
+                 Sequelize.literal('COUNT(DISTINCT "Posts->Likes"."id")'),
+                 "likesCount",
+               ],
+               [
+                 Sequelize.literal('COUNT(DISTINCT "Posts->Comments"."id")'),
+                 "commentsCount",
+               ],
+             ],
+           },
+           include: [
+             {
+               model: Models.Like,
+               as: "Likes",
+               attributes: [],
+               required: false,
+             },
+             {
+               model: Models.Comment,
+               where: {
+                 parentId: null,
+               },
+               as: "Comments",
+               attributes: [],
+               required: false,
+             },
+           ],
+           required: false,
+         },
+       ],
+       order: [[Sequelize.col("Posts.createdAt"), "ASC"]],
+       group: [
+         "User.id",
+         "Posts.id",
+         "Posts.createdAt",
+       ],
+       limit: limit,
+       offset: offset,
+       subQuery: false,
+     });
+
+      return successResponseData(res, posts, 200, messages.getPostSuccess);
+    }
+
+    if (pageId !== undefined) {
+      const posts = await Models.Page.findByPk(pageId, {
+        attributes: ["id"],
+        include: [
+          {
+            model: Models.Post,
+            as: "pagePosts",
+            attributes: {
+              exclude: [
+                "createdBy",
+                "originalPostId",
+                "rootPostId",
+                "status",
+                "filePublicId",
+              ],
+              include: [
+                [
+                  Sequelize.literal('COUNT(DISTINCT "pagePosts->Likes"."id")'),
+                  "likesCount",
+                ],
+                [
+                  Sequelize.literal(
+                    'COUNT(DISTINCT "pagePosts->Comments"."id")'
+                  ),
+                  "commentsCount",
+                ],
+              ],
+            },
+            include: [
+              {
+                model: Models.Like,
+                as: "Likes",
+                attributes: [],
+                required: false,
+              },
+              {
+                model: Models.Comment,
+                where: {
+                  parentId: null,
+                },
+                as: "Comments",
+                attributes: [],
+                required: false,
+              },
+            ],
+            required: false,
+          },
+        ],
+        order: [[Sequelize.col("pagePosts.createdAt"), "ASC"]],
+        group: [
+          "Page.id",
+          "pagePosts.id",
+          "pagePosts.createdAt",
+        ],
+        limit: limit,
+        offset: offset,
+        subQuery: false,
+      });
+
+      return successResponseData(res, posts, 200, messages.getPostSuccess);
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorGettingPost, 400);
   }
 };

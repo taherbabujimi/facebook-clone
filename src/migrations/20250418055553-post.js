@@ -36,11 +36,16 @@ module.exports = {
       },
       originalPostId: {
         type: Sequelize.INTEGER,
-        // references: { model: "posts", key: "id" },
       },
       rootPostId: {
         type: Sequelize.INTEGER,
-        // references: { model: "posts", key: "id" },
+      },
+      pageId: {
+        type: Sequelize.INTEGER,
+        references: {
+          model: "pages",
+          key: "id",
+        },
       },
       createdAt: {
         type: Sequelize.DATE,

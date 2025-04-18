@@ -17,6 +17,7 @@ const {
   forgotPasswordSchema,
   resetPasswordSchema,
   searchUserSchema,
+  updateUserProfileSchema,
 } = require("./validations");
 const { countries } = require("../../services/country");
 const { generateForgotPasswordToken } = require("./helpers");
@@ -387,5 +388,72 @@ module.exports.searchUser = async (req, res) => {
     console.log(error);
 
     return errorResponseWithoutData(res, messages.errorSearchUser, 400);
+  }
+};
+
+module.exports.updateUserProfile = async (req, res) => {
+  try {
+    const validationResponse = updateUserProfileSchema(req.body, res);
+    if (validationResponse !== false) return;
+
+    const { username, occupation, interestedTopics, hobbies, profilePublicId } =
+      req.body;
+
+    const occupationExists = await Models.Occupation.findByPk(occupation);
+
+    if (!occupationExists) {
+      return errorResponseWithoutData(res, messages.occupationNotFound, 400);
+    }
+
+    if (interestedTopics !== undefined) {
+      const interestedTopicsExists = await Models.InterestedTopic.count({
+        where: { id: interestedTopics },
+      });
+
+      if (interestedTopicsExists < interestedTopics.length) {
+        return errorResponseWithoutData(
+          res,
+          messages.interestedTopicsNotFound,
+          400
+        );
+      }
+    }
+
+    if (hobbies !== undefined) {
+      const hobbiesExists = await Models.Hobbies.count({
+        where: { id: hobbies },
+      });
+
+      if (hobbiesExists < hobbies.length) {
+        return errorResponseWithoutData(res, messages.hobbiesNotFound, 400);
+      }
+    }
+
+    if (profilePublicId !== undefined) {
+      if (req.user.profilePublicId !== null) {
+        await cloudinary.uploader.destroy(req.user.profilePublicId, {
+          resource_type: "image",
+        });
+      }
+    }
+
+    const user = await Models.User.update(
+      {
+        username,
+        occupation,
+        interestedTopics,
+        hobbies,
+        profilePublicId,
+      },
+      {
+        where: { id: req.user.id },
+      }
+    );
+
+    return successResponseData(res, user, 200, messages.updateUserSuccess);
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorUpdateUser, 400);
   }
 };

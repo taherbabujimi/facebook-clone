@@ -24,6 +24,8 @@ let messages = {
   userNotVerified: "User email not verified, please verify your email first.",
   errorSearchUser: "Error while searching user.",
   userFoundSuccess: "Searched users fetched successfully.",
+  errorUpdateUser: "Error while updating user profile.",
+  updateUserSuccess: "User profile updated successfully.",
 };
 
 module.exports = {

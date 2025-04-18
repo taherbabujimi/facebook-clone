@@ -5,6 +5,7 @@ const {
   resetPassword,
   verifyEmail,
   searchUser,
+  updateUserProfile,
 } = require("./controllers");
 const { verifyJWT } = require("../../middlewares/authMiddleware");
 
@@ -21,5 +22,7 @@ userRoute.post("/resetPassword", resetPassword);
 userRoute.get("/verifyEmail", verifyEmail);
 
 userRoute.get("/searchUser", verifyJWT, searchUser);
+
+userRoute.put("/updateUserProfile", verifyJWT, updateUserProfile);
 
 module.exports = userRoute;
