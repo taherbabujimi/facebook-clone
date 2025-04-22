@@ -11,10 +11,10 @@ const {
   updatePostSchema,
   getPostsSchema,
 } = require("./validations");
-const { createUploadSignature } = require("../../services/helpers");
 
 const { cloudinary } = require("../../config/cloudinary");
 const { Sequelize } = require("sequelize");
+const { sequelize } = require("../../models/index");
 
 module.exports.getUploadSignature = async (req, res) => {
   try {
@@ -247,6 +247,7 @@ module.exports.updatePost = async (req, res) => {
 };
 
 module.exports.deletePost = async (req, res) => {
+  let transaction;
   try {
     const { id } = req.query;
 
@@ -289,12 +290,29 @@ module.exports.deletePost = async (req, res) => {
       }
     }
 
+    transaction = await sequelize.transaction();
+
+    await Models.Like.destroy({
+      where: { postId: id },
+      transaction,
+    });
+
+    await Models.Comment.destroy({
+      where: { postId: id },
+      transaction,
+    });
+
     await Models.Post.destroy({
       where: { id },
+      transaction,
     });
+
+    await transaction.commit();
 
     return successResponseWithoutData(res, messages.postDeleteSuccess, 200);
   } catch (error) {
+    if (transaction) await transaction.rollback();
+
     console.log(error);
     return errorResponseWithoutData(res, messages.errorDeletePost, 400);
   }
@@ -313,61 +331,57 @@ module.exports.getPosts = async (req, res) => {
     const limit = parseInt(pageSize || 10);
 
     if (profileId !== undefined) {
-     const posts = await Models.User.findByPk(profileId, {
-       attributes: ["id"],
-       include: [
-         {
-           model: Models.Post,
-           where: { pageId: null },
-           attributes: {
-             exclude: [
-               "createdBy",
-               "originalPostId",
-               "rootPostId",
-               "status",
-               "filePublicId",
-             ],
-             include: [
-               [
-                 Sequelize.literal('COUNT(DISTINCT "Posts->Likes"."id")'),
-                 "likesCount",
-               ],
-               [
-                 Sequelize.literal('COUNT(DISTINCT "Posts->Comments"."id")'),
-                 "commentsCount",
-               ],
-             ],
-           },
-           include: [
-             {
-               model: Models.Like,
-               as: "Likes",
-               attributes: [],
-               required: false,
-             },
-             {
-               model: Models.Comment,
-               where: {
-                 parentId: null,
-               },
-               as: "Comments",
-               attributes: [],
-               required: false,
-             },
-           ],
-           required: false,
-         },
-       ],
-       order: [[Sequelize.col("Posts.createdAt"), "ASC"]],
-       group: [
-         "User.id",
-         "Posts.id",
-         "Posts.createdAt",
-       ],
-       limit: limit,
-       offset: offset,
-       subQuery: false,
-     });
+      const posts = await Models.User.findByPk(profileId, {
+        attributes: ["id"],
+        include: [
+          {
+            model: Models.Post,
+            where: { pageId: null },
+            attributes: {
+              exclude: [
+                "createdBy",
+                "originalPostId",
+                "rootPostId",
+                "status",
+                "filePublicId",
+              ],
+              include: [
+                [
+                  Sequelize.literal('COUNT(DISTINCT "Posts->Likes"."id")'),
+                  "likesCount",
+                ],
+                [
+                  Sequelize.literal('COUNT(DISTINCT "Posts->Comments"."id")'),
+                  "commentsCount",
+                ],
+              ],
+            },
+            include: [
+              {
+                model: Models.Like,
+                as: "Likes",
+                attributes: [],
+                required: false,
+              },
+              {
+                model: Models.Comment,
+                where: {
+                  parentId: null,
+                },
+                as: "Comments",
+                attributes: [],
+                required: false,
+              },
+            ],
+            required: false,
+          },
+        ],
+        order: [[Sequelize.col("Posts.createdAt"), "ASC"]],
+        group: ["User.id", "Posts.id", "Posts.createdAt"],
+        limit: limit,
+        offset: offset,
+        subQuery: false,
+      });
 
       return successResponseData(res, posts, 200, messages.getPostSuccess);
     }
@@ -421,11 +435,7 @@ module.exports.getPosts = async (req, res) => {
           },
         ],
         order: [[Sequelize.col("pagePosts.createdAt"), "ASC"]],
-        group: [
-          "Page.id",
-          "pagePosts.id",
-          "pagePosts.createdAt",
-        ],
+        group: ["Page.id", "pagePosts.id", "pagePosts.createdAt"],
         limit: limit,
         offset: offset,
         subQuery: false,

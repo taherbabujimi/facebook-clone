@@ -10,6 +10,9 @@ const messages = {
   postIsNotYours: "This post does not belong to your profile.",
   errorDeleteComment: "Error while deleting a comment.",
   commentDeleteSuccess: "Comment deleted successfully.",
+  parentCommentNotExists: "Parent comment with this ID does not exists.",
+  parentCommentNotBelongsToPost:
+    "Parent comment does not belong to provided postId",
 };
 
 module.exports = {

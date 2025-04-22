@@ -24,6 +24,25 @@ module.exports.addComment = async (req, res) => {
 
     const { postId, parentId, content } = req.body;
 
+    if (parentId !== undefined) {
+      const commentExists = await Models.Comment.findByPk(parentId);
+      if (!commentExists) {
+        return errorResponseWithoutData(
+          res,
+          messages.parentCommentNotExists,
+          400
+        );
+      }
+
+      if (commentExists.postId !== postId) {
+        return errorResponseWithoutData(
+          res,
+          messages.parentCommentNotBelongsToPost,
+          400
+        );
+      }
+    }
+
     // Check if post exists
     const postExists = await Models.Post.findByPk(postId);
     if (!postExists) {
