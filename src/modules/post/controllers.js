@@ -121,17 +121,20 @@ module.exports.getSinglePost = async (req, res) => {
 
     const post = await Models.Post.findByPk(id, {
       attributes: {
-        exclude: [
-          "createdBy",
-          "originalPostId",
-          "rootPostId",
-          "status",
-          "filePublicId",
-        ],
+        exclude: ["filePublicId"],
         include: [
-          [Sequelize.fn("COUNT", Sequelize.col("Likes.id")), "likesCount"],
           [
-            Sequelize.fn("COUNT", Sequelize.col("Comments.id")),
+            Sequelize.fn(
+              "COUNT",
+              Sequelize.fn("DISTINCT", Sequelize.col("Likes.id"))
+            ),
+            "likesCount",
+          ],
+          [
+            Sequelize.fn(
+              "COUNT",
+              Sequelize.fn("DISTINCT", Sequelize.col("Comments.id"))
+            ),
             "commentsCount",
           ],
         ],
@@ -169,17 +172,42 @@ module.exports.getSinglePost = async (req, res) => {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
     }
 
-    let data = post;
+    if (
+      post.dataValues.status === "private" &&
+      post.dataValues.createdBy !== req.user.id
+    ) {
+      const friend = await Models.Friend.findOne({
+        where: {
+          [Op.or]: [
+            { userId: req.user.id, friendId: post.dataValues.createdBy },
+            { userId: post.dataValues.createdBy, friendId: req.user.id },
+          ],
+        },
+      });
 
-    if (post.dataValues.rootPost === null) {
-      data = {
-        ...post.dataValues,
-        rootPost: "the original content is no longer available.",
-      };
+      if (!friend) {
+        return errorResponseWithoutData(
+          res,
+          messages.cantAccessPrivatePosts,
+          400
+        );
+      }
     }
 
-    if (!post) {
-      return errorResponseWithoutData(res, messages.postNotExists, 400);
+    let data = post.dataValues;
+
+    if (
+      post.dataValues.rootPostId !== null &&
+      post.dataValues.rootPost === null
+    ) {
+      data.rootPost = "the original content is no longer available.";
+    }
+
+    if (
+      post.dataValues.originalPostId !== null &&
+      post.dataValues.originalPost === null
+    ) {
+      data.originalPost = "It's parent post is no longer available";
     }
 
     return successResponseData(res, data, 200, messages.getPostSuccess);
@@ -329,7 +357,6 @@ module.exports.getPosts = async (req, res) => {
                 "createdBy",
                 "originalPostId",
                 "rootPostId",
-                "status",
                 "filePublicId",
               ],
               include: [

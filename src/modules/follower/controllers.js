@@ -14,6 +14,10 @@ module.exports.followUnfollowUser = async (req, res) => {
 
     const { followingId } = req.body;
 
+    if (followingId === req.user.id) {
+      return errorResponseWithoutData(res, messages.cannotFollowYourself, 400);
+    }
+
     const alreadyFollowed = await Models.Follower.findOne({
       where: {
         followerId: req.user.id,

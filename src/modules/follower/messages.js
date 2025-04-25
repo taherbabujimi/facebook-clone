@@ -6,6 +6,7 @@ const messages = {
   successGettingFollowers: "Successfully fetched followers.",
   errorGettingFollowings: "Error while getting followings.",
   successGettingFollowings: "Successfully fetched followings.",
+  cannotFollowYourself: "You can't follow yourself.",
 };
 
 module.exports = { messages };
