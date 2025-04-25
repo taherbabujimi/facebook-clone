@@ -1,21 +1,20 @@
 const { Model } = require("sequelize");
-const { requestStatus } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
-  class Friend extends Model {
+  class Follower extends Model {
     static associate(models) {
       this.belongsTo(models.User, {
-        foreignKey: "userId",
-        as: "User",
+        foreignKey: "followerId",
+        as: "Followers",
       });
       this.belongsTo(models.User, {
-        foreignKey: "friendId",
-        as: "FriendUser",
+        foreignKey: "followingId",
+        as: "Followings",
       });
     }
   }
 
-  Friend.init(
+  Follower.init(
     {
       id: {
         type: DataTypes.INTEGER,
@@ -23,28 +22,30 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
         allowNull: false,
       },
-      userId: {
+      followerId: {
         type: DataTypes.INTEGER,
-        references: { model: "users", key: "id" },
         allowNull: false,
+        references: {
+          model: "users",
+          key: "id",
+        },
       },
-      friendId: {
+      followingId: {
         type: DataTypes.INTEGER,
-        references: { model: "users", key: "id" },
-      },
-      status: {
-        type: DataTypes.ENUM(...requestStatus),
-        defaultValue: requestStatus[0],
         allowNull: false,
+        references: {
+          model: "users",
+          key: "id",
+        },
       },
     },
     {
       sequelize,
-      modelName: "Friend",
-      tableName: "friends",
+      modelName: "Follower",
+      tableName: "followers",
       timestamps: true,
     }
   );
 
-  return Friend;
+  return Follower;
 };

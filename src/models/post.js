@@ -5,6 +5,10 @@ const { FILE_TYPE } = require("../modules/post/constants");
 module.exports = (sequelize, DataTypes) => {
   class Post extends Model {
     static associate(models) {
+      this.belongsTo(models.User, {
+        foreignKey: "createdBy",
+      });
+
       this.hasMany(models.Like, {
         foreignKey: "postId",
       });

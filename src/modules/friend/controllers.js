@@ -8,6 +8,7 @@ const { messages } = require("./messages");
 const {
   sendRequestSchema,
   acceptRejectRequestSchema,
+  getFriendsSchema,
 } = require("./validations");
 const Models = require("../../models/index");
 const { cloudinary } = require("../../config/cloudinary");
@@ -173,12 +174,16 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
 
     const { friendId, requestType } = req.body;
 
+    console.log(req.user.id, friendId, requestType);
+
     const request = await Models.Friend.findOne({
       where: { friendId: req.user.id, userId: friendId },
     });
 
+    console.log(request);
+
     if (!request) {
-      return errorResponseWithoutData(res, messages.requestNot, 400);
+      return errorResponseWithoutData(res, messages.requestNotFound, 400);
     }
 
     if (request.status === "confirm") {
@@ -197,6 +202,8 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
       }
     }
 
+    transaction = await sequelize.transaction();
+
     if (requestType === requestTypes[0]) {
       const user = await Models.User.findOne({
         where: { id: friendId },
@@ -205,8 +212,6 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
       if (!user) {
         return errorResponseWithoutData(res, messages.userNot, 400);
       }
-
-      transaction = await sequelize.transaction();
 
       await Models.Friend.update(
         {
@@ -236,9 +241,25 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
       );
     }
 
-    await Models.Friend.destroy({
-      where: { userId: friendId, friendId: req.user.id },
-    });
+    await Models.Friend.destroy(
+      {
+        where: { userId: friendId, friendId: req.user.id },
+      },
+      { transaction }
+    );
+
+    await Models.Notification.create(
+      {
+        recipientId: friendId,
+        senderId: req.user.id,
+        type: notificationType[5],
+        entityType: entityType[0],
+        entityId: req.user.id,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
 
     return successResponseWithoutData(res, messages.requestRejectSuccess, 200);
   } catch (error) {
@@ -251,6 +272,86 @@ module.exports.acceptRejectFriendRequest = async (req, res) => {
       `${messages.errorAcceptRejectRequest}: ${error}`,
       400
     );
+  }
+};
+
+module.exports.getFriends = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const friends = await Models.Friend.findAll({
+      where: {
+        [Op.or]: [{ friendId: userId }, { userId: userId }],
+        status: "confirm",
+      },
+      // attributes: [],
+      include: [
+        {
+          model: Models.User,
+          as: "User",
+          required: false,
+          attributes: [],
+        },
+        {
+          model: Models.User,
+          as: "FriendUser",
+          required: false,
+          attributes: [],
+        },
+      ],
+      // Add a virtual column to determine which user is the friend
+      attributes: {
+        exclude: [
+          "id",
+          "userId",
+          "friendId",
+          "status",
+          "createdAt",
+          "updatedAt",
+        ],
+        include: [
+          [
+            Models.sequelize.literal(`CASE 
+              WHEN "Friend"."userId" = ${userId} THEN "FriendUser"."id"
+              ELSE "User"."id" 
+            END`),
+            "id",
+          ],
+          [
+            Models.sequelize.literal(`CASE 
+              WHEN "Friend"."userId" = ${userId} THEN "FriendUser"."username"
+              ELSE "User"."username" 
+            END`),
+            "username",
+          ],
+          [
+            Models.sequelize.literal(`CASE 
+              WHEN "Friend"."userId" = ${userId} THEN "FriendUser"."email"
+              ELSE "User"."email" 
+            END`),
+            "email",
+          ],
+          // You can add more fields as needed
+        ],
+      },
+    });
+
+    console.log("FRIENDS: ", friends);
+
+    if (!friends) {
+      return errorResponseWithoutData(res, messages.errorGettingFriends, 400);
+    }
+
+    return successResponseData(
+      res,
+      friends,
+      200,
+      messages.successGettingFriends
+    );
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorGettingFriends, 400);
   }
 };
 

@@ -11,6 +11,7 @@ const {
   updatePostSchema,
   getPostsSchema,
 } = require("./validations");
+const { Op } = require("sequelize");
 
 const { cloudinary } = require("../../config/cloudinary");
 const { Sequelize } = require("sequelize");
@@ -18,17 +19,7 @@ const { sequelize } = require("../../models/index");
 
 module.exports.getUploadSignature = async (req, res) => {
   try {
-    // const resource_type = "auto";
-
     const timestamp = new Date().getTime();
-
-    // const expires_at = Math.floor((Date.now() + 3600000) / 1000);
-
-    // const signature = await createUploadSignature(
-    //   resource_type,
-    //   expires_at,
-    //   timestamp
-    // );
 
     const signature = await cloudinary.utils.sign_request(
       {
@@ -46,16 +37,12 @@ module.exports.getUploadSignature = async (req, res) => {
       {
         timestamp: signature.timestamp,
         signature: signature.signature,
-        // expires_at,
-        // folder: signature.folder,
-        // resourceType: signature.resource_type,
-        // expiresAt: signature.expires_at,
-        // max_file_size: signature.max_file_size,
       },
       200
     );
   } catch (error) {
     console.log(error);
+
     return errorResponseWithoutData(res, messages.errorGettingUploadSing, 400);
   }
 };
@@ -447,5 +434,119 @@ module.exports.getPosts = async (req, res) => {
     console.log(error);
 
     return errorResponseWithoutData(res, messages.errorGettingPost, 400);
+  }
+};
+
+module.exports.getUserFeed = async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const limit = parseInt(req.query.limit) || 50;
+    const currentPage = parseInt(req.query.page) || 1;
+    const offset = (currentPage - 1) * limit;
+
+    const WEIGHTS = {
+      FRIENDS_POST: 5,
+      FRIENDS_COMMENT: 3,
+      FRIENDS_LIKE: 2,
+    };
+
+    const userFriendships = await Models.Friend.findAll({
+      where: {
+        [Op.or]: [{ userId: userId }, { friendId: userId }],
+        status: "confirm",
+      },
+    });
+
+    console.log(userFriendships);
+
+    const friendIds = userFriendships.map((friendship) =>
+      friendship.userId === userId ? friendship.friendId : friendship.userId
+    );
+
+    console.log("FRIEND IDs: ", friendIds);
+
+    const basePosts = await Models.Post.findAll({
+      where: {
+        [Op.or]: [{ createdBy: { [Op.in]: friendIds } }],
+        status: "public",
+      },
+      include: [
+        {
+          model: Models.User,
+          attributes: ["id", "username", "profilePublicId"],
+        },
+        {
+          model: Models.Like,
+          attributes: ["id", "userId", "createdAt"],
+        },
+        {
+          model: Models.Comment,
+          attributes: ["id", "userId", "content", "createdAt"],
+          include: [
+            {
+              model: Models.User,
+              attributes: ["id", "username", "profilePublicId"],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const scoredPosts = basePosts.map((post) => {
+      let score = 0;
+
+      if (friendIds.includes(post.createdBy)) {
+        score += WEIGHTS.FRIENDS_POST;
+      }
+
+      const friendLikes = post.Likes
+        ? post.Likes.filter((like) => friendIds.includes(like.userId)).length
+        : 0;
+      score += friendLikes * WEIGHTS.FRIENDS_LIKE;
+
+      const friendComments = post.Comments
+        ? post.Comments.filter((comment) => friendIds.includes(comment.userId))
+            .length
+        : 0;
+
+      score += friendComments * WEIGHTS.FRIENDS_COMMENT;
+
+      const postAge =
+        (new Date() - new Date(post.createdAt)) / (1000 * 60 * 60); // Hours since post was created
+      const timeDecay = Math.exp(-0.05 * postAge); // Simple exponential decay
+
+      score = score * timeDecay;
+
+      return {
+        post: post,
+        score: score,
+      };
+    });
+
+    scoredPosts.sort((a, b) => b.score - a.score);
+
+    const paginatedPosts = scoredPosts
+      .slice(offset, offset + limit)
+      .map((item) => item.post);
+
+    const formattedPosts = paginatedPosts.map((post) => {
+      const plainPost = post.get({ plain: true });
+      return {
+        ...plainPost,
+        _score: scoredPosts.find((p) => p.post.id === post.id).score,
+      };
+    });
+
+    return successResponseData(
+      res,
+      formattedPosts,
+      200,
+      messages.successUserFeed
+    );
+  } catch (error) {
+    console.log(error);
+    errorResponseWithoutData(res, messages.errorGettingUserFeed, 400);
   }
 };

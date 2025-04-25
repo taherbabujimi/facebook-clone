@@ -5,6 +5,7 @@ const {
   acceptRejectFriendRequest,
   getFriendRequests,
   getRecommendedFriends,
+  getFriends,
 } = require("./controllers");
 
 friendRoute.post("/sendFriendRequest", verifyJWT, sendFriendRequest);
@@ -16,6 +17,8 @@ friendRoute.put(
 );
 
 friendRoute.get("/getFriendRequests", verifyJWT, getFriendRequests);
+
+friendRoute.get("/getFriends", verifyJWT, getFriends);
 
 friendRoute.get("/getRecommendedFriends", verifyJWT, getRecommendedFriends);
 

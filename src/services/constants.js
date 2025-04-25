@@ -6,6 +6,7 @@ const notificationType = [
   "postLike",
   "postComment",
   "commentReply",
+  "friendReject",
 ];
 
 const entityType = ["friend", "post", "comment", "like"];

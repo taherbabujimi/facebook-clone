@@ -6,7 +6,6 @@ const {
 } = require("../../services/responses");
 const { messages } = require("./messages");
 const { createPageSchema, deletePageSchema } = require("./validations");
-const { sequelize } = require("../../models/index");
 const { getChannel } = require("../../config/queue-config");
 
 module.exports.createPage = async (req, res) => {
@@ -71,8 +70,6 @@ module.exports.getPage = async (req, res) => {
 };
 
 module.exports.deletePage = async (req, res) => {
-  let transaction;
-
   try {
     const validationResponse = deletePageSchema(req.body, res);
     if (validationResponse !== false) return;

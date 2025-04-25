@@ -36,8 +36,10 @@ module.exports.getAllNotifications = async (req, res) => {
         middleMessage = "replied on your comment";
       } else if (item.dataValues.type === "friendRequest") {
         middleMessage = "sent you a friend request";
-      } else {
+      } else if (item.dataValues.type === "friendAccept") {
         middleMessage = "accepted your friend request";
+      } else if (item.dataValues.type === "friendReject") {
+        middleMessage = "rejected your friend request";
       }
 
       data.push({

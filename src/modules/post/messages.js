@@ -14,6 +14,8 @@ const messages = {
   pageNotExists: "Page with this ID does not exists.",
   pageNotYours: "Page with this ID does not belongs to you.",
   userNotExists: "User with this ID does not exists.",
+  errorGettingUserFeed: "Error while getting recommended posts for user.",
+  successUserFeed: "Successfully fetched user's feed.",
 };
 
 module.exports = {

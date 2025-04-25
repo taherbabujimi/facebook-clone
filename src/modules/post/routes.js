@@ -5,6 +5,7 @@ const {
   updatePost,
   deletePost,
   getPosts,
+  getUserFeed,
 } = require("./controllers");
 const { verifyJWT } = require("../../middlewares/authMiddleware");
 
@@ -21,5 +22,7 @@ postRoute.put("/updatePost", verifyJWT, updatePost);
 postRoute.delete("/deletePost", verifyJWT, deletePost);
 
 postRoute.get("/getPosts", verifyJWT, getPosts);
+
+postRoute.get("/getUserFeed", verifyJWT, getUserFeed);
 
 module.exports = postRoute;

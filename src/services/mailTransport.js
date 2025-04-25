@@ -16,7 +16,7 @@ module.exports.emailTransport = async (from, to, subject, html) => {
     service: "gmail",
     auth: {
       type: "OAuth2",
-      user: "taher.babuji@mindinventory.com",
+      user: process.env.ADMIN_EMAIL,
       clientId: process.env.CLIENT_ID,
       clientSecret: process.env.CLIENT_SECRET,
       refreshToken: process.env.REFRESH_TOKEN,

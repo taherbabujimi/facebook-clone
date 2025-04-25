@@ -21,6 +21,9 @@ const messages = {
   fetchedRecommendedFriendSuccess:
     "Successfully fetched all recommended friends.",
   errorGettingRecommendations: "Failed to get friend recommendations",
+  errorGettingFriends: "Error while getting user friends.",
+  successGettingFriends: "Successfully fetched user friends.",
+  requestNotFound: "Friend request not found.",
 };
 
 module.exports = {
