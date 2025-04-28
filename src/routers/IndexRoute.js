@@ -7,6 +7,7 @@ const friendRoute = require("../modules/friend/routes");
 const notificationRoute = require("../modules/notification/routes");
 const pageRoute = require("../modules/page/routes");
 const followerRoute = require("../modules/follower/routes");
+const messageRoute = require("../modules/message/routes");
 
 IndexRoute.use("/v1/user", userRoute);
 IndexRoute.use("/v1/post", postRoute);
@@ -16,5 +17,6 @@ IndexRoute.use("/v1/friend", friendRoute);
 IndexRoute.use("/v1/notification", notificationRoute);
 IndexRoute.use("/v1/page", pageRoute);
 IndexRoute.use("/v1/follower", followerRoute);
+IndexRoute.use("/v1/message", messageRoute);
 
 module.exports = IndexRoute;
