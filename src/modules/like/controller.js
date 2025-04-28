@@ -80,7 +80,13 @@ module.exports.likeUnlikePost = async (req, res) => {
     return successResponseWithoutData(res, messages.postLikedSuccess, 200);
   } catch (error) {
     if (transaction) await transaction.rollback();
+
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorAddLike, 400);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorAddLike}: ${error}`,
+      400
+    );
   }
 };

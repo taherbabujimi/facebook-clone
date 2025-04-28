@@ -120,7 +120,7 @@ module.exports.sendFriendRequest = async (req, res) => {
 
     return errorResponseWithoutData(
       res,
-      messages.errorSendingFriendRequest,
+      `${messages.errorSendingFriendRequest}: ${error}`,
       400
     );
   }
@@ -351,7 +351,11 @@ module.exports.getFriends = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorGettingFriends, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingFriends}: ${error}`,
+      400
+    );
   }
 };
 

@@ -64,7 +64,7 @@ module.exports.getAllNotifications = async (req, res) => {
 
     return errorResponseWithoutData(
       res,
-      messages.errorGettingNotification,
+      `${messages.errorGettingNotification}: ${error}`,
       400
     );
   }
@@ -115,7 +115,7 @@ module.exports.markNotificationsRead = async (req, res) => {
 
     return errorResponseWithoutData(
       res,
-      messages.errorMarkingAllNotificationsRead,
+      `${messages.errorMarkingAllNotificationsRead}: ${error}`,
       400
     );
   }

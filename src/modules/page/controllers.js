@@ -43,7 +43,11 @@ module.exports.createPage = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorCreatePage, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorCreatePage}:${error}`,
+      400
+    );
   }
 };
 
@@ -65,7 +69,11 @@ module.exports.getPage = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorGettingPage, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingPage}: ${error}`,
+      400
+    );
   }
 };
 
@@ -103,6 +111,10 @@ module.exports.deletePage = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorDeletePage, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorDeletePage}: ${error}`,
+      400
+    );
   }
 };

@@ -122,7 +122,12 @@ module.exports.registerUser = async (req, res) => {
     );
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorRegisterUser, 400);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorRegisterUser}: ${error}`,
+      400
+    );
   }
 };
 
@@ -174,10 +179,15 @@ module.exports.verifyEmail = async (req, res) => {
     );
 
     res.set("Content-Type", "Text/html");
+
     return res.send(html);
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorVerifyingEmail, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorVerifyingEmail}: ${error}`,
+      400
+    );
   }
 };
 
@@ -219,7 +229,8 @@ module.exports.userLogin = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    errorResponseWithoutData(res, messages.errorLoginUser, 400);
+
+    errorResponseWithoutData(res, `${messages.errorLoginUser}: ${error}`, 400);
   }
 };
 
@@ -289,7 +300,12 @@ module.exports.forgotPassword = async (req, res) => {
     });
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorForgotPassword, 400);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorForgotPassword}: ${rror}`,
+      400
+    );
   }
 };
 
@@ -387,7 +403,11 @@ module.exports.searchUser = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorSearchUser, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorSearchUser}: ${error}`,
+      400
+    );
   }
 };
 
@@ -454,6 +474,10 @@ module.exports.updateUserProfile = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorUpdateUser, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorUpdateUser}: ${error}`,
+      400
+    );
   }
 };

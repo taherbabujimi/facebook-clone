@@ -41,7 +41,7 @@ const addPostSchema = (body, res) => {
 
     return errorResponseWithoutData(
       res,
-      commonMessages.errorWhileValidatingValues,
+      `${commonMessages.errorWhileValidatingValues}: ${error}`,
       400
     );
   }
@@ -73,7 +73,7 @@ const updatePostSchema = (body, res) => {
 
     return errorResponseWithoutData(
       res,
-      commonMessages.errorWhileValidatingValues,
+      `${commonMessages.errorWhileValidatingValues}: ${error}`,
       400
     );
   }
@@ -122,7 +122,7 @@ const getPostsSchema = (body, res) => {
 
     return errorResponseWithoutData(
       res,
-      commonMessages.errorWhileValidatingValues,
+      `${commonMessages.errorWhileValidatingValues}: ${error}`,
       400
     );
   }

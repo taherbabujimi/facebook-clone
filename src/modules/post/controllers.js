@@ -43,7 +43,11 @@ module.exports.getUploadSignature = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorGettingUploadSing, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingUploadSing}: ${error}`,
+      400
+    );
   }
 };
 
@@ -107,7 +111,12 @@ module.exports.addRepostPost = async (req, res) => {
     return successResponseData(res, post, 200, messages.postAddSuccess);
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorAddingPost, 400);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorAddingPost}: ${error}`,
+      400
+    );
   }
 };
 
@@ -213,7 +222,12 @@ module.exports.getSinglePost = async (req, res) => {
     return successResponseData(res, data, 200, messages.getPostSuccess);
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorGettingPost, 400);
+
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingPost}: ${error}`,
+      400
+    );
   }
 };
 
@@ -257,7 +271,11 @@ module.exports.updatePost = async (req, res) => {
     );
   } catch (error) {
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorUpdatingPost, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorUpdatingPost}: ${error}`,
+      400
+    );
   }
 };
 
@@ -299,7 +317,7 @@ module.exports.deletePost = async (req, res) => {
         console.error("Error deleting from Cloudinary:", cloudinaryError);
         return errorResponseWithoutData(
           res,
-          "Error deleting file from cloud storage",
+          `Error deleting file from cloud storage: ${cloudinaryError}`,
           400
         );
       }
@@ -329,7 +347,11 @@ module.exports.deletePost = async (req, res) => {
     if (transaction) await transaction.rollback();
 
     console.log(error);
-    return errorResponseWithoutData(res, messages.errorDeletePost, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorDeletePost}: ${error}`,
+      400
+    );
   }
 };
 
@@ -346,6 +368,70 @@ module.exports.getPosts = async (req, res) => {
     const limit = parseInt(pageSize || 10);
 
     if (profileId !== undefined) {
+      const friend = await Models.Friend.findOne({
+        where: {
+          [Op.or]: [
+            { userId: req.user.id, friendId: profileId },
+            { userId: profileId, friendId: req.user.id },
+          ],
+        },
+      });
+
+      if (friend === null) {
+        const posts = await Models.User.findByPk(profileId, {
+          attributes: ["id"],
+          include: [
+            {
+              model: Models.Post,
+              where: { pageId: null, status: "public" },
+              attributes: {
+                exclude: [
+                  "createdBy",
+                  "originalPostId",
+                  "rootPostId",
+                  "filePublicId",
+                ],
+                include: [
+                  [
+                    Sequelize.literal('COUNT(DISTINCT "Posts->Likes"."id")'),
+                    "likesCount",
+                  ],
+                  [
+                    Sequelize.literal('COUNT(DISTINCT "Posts->Comments"."id")'),
+                    "commentsCount",
+                  ],
+                ],
+              },
+              include: [
+                {
+                  model: Models.Like,
+                  as: "Likes",
+                  attributes: [],
+                  required: false,
+                },
+                {
+                  model: Models.Comment,
+                  where: {
+                    parentId: null,
+                  },
+                  as: "Comments",
+                  attributes: [],
+                  required: false,
+                },
+              ],
+              required: false,
+            },
+          ],
+          order: [[Sequelize.col("Posts.createdAt"), "ASC"]],
+          group: ["User.id", "Posts.id", "Posts.createdAt"],
+          limit: limit,
+          offset: offset,
+          subQuery: false,
+        });
+
+        return successResponseData(res, posts, 200, messages.getPostSuccess);
+      }
+
       const posts = await Models.User.findByPk(profileId, {
         attributes: ["id"],
         include: [
@@ -460,7 +546,11 @@ module.exports.getPosts = async (req, res) => {
   } catch (error) {
     console.log(error);
 
-    return errorResponseWithoutData(res, messages.errorGettingPost, 400);
+    return errorResponseWithoutData(
+      res,
+      `${messages.errorGettingPost}: ${error}`,
+      400
+    );
   }
 };
 
@@ -485,13 +575,9 @@ module.exports.getUserFeed = async (req, res) => {
       },
     });
 
-    console.log(userFriendships);
-
     const friendIds = userFriendships.map((friendship) =>
       friendship.userId === userId ? friendship.friendId : friendship.userId
     );
-
-    console.log("FRIEND IDs: ", friendIds);
 
     const basePosts = await Models.Post.findAll({
       where: {
