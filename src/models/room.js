@@ -3,7 +3,12 @@ const { roomType } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
   class Room extends Model {
-    static associate() {}
+    static associate(models) {
+      this.hasMany(models.RoomParticipant, {
+        foreignKey: "roomId",
+        as: "participants",
+      });
+    }
   }
 
   Room.init(
@@ -28,7 +33,6 @@ module.exports = (sequelize, DataTypes) => {
           model: "messages",
           key: "id",
         },
-        allowNull: false,
       },
     },
     {

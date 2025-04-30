@@ -3,7 +3,12 @@ const { roomParticipantStatus } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
   class RoomParticipant extends Model {
-    static associate() {}
+    static associate(models) {
+      this.belongsTo(models.Room, {
+        foreignKey: "roomId",
+        as: "room",
+      });
+    }
   }
 
   RoomParticipant.init(
@@ -32,7 +37,6 @@ module.exports = (sequelize, DataTypes) => {
       },
       joinedAt: {
         type: DataTypes.DATE,
-        allowNull: false,
       },
       lastReadMessageId: {
         type: DataTypes.INTEGER,
@@ -40,7 +44,6 @@ module.exports = (sequelize, DataTypes) => {
           model: "messages",
           key: "id",
         },
-        allowNull: false,
       },
       isAdmin: {
         type: DataTypes.BOOLEAN,
