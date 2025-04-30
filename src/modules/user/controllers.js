@@ -200,7 +200,7 @@ module.exports.userLogin = async (req, res) => {
 
     const user = await Models.User.findOne({
       where: { email },
-      attributes: ["username", "email", "password", "isVerified"],
+      attributes: ["username", "email", "password", "isVerified", "id"],
     });
 
     if (!user) {
@@ -218,6 +218,13 @@ module.exports.userLogin = async (req, res) => {
     }
 
     const accessToken = await user.generateAccessToken();
+
+    res.cookie("auth_token", accessToken, {
+      secure: process.env.NODE_ENV === "production", // Use HTTPS in production
+      sameSite: "Lax", // Allow cookies for same-origin and some cross-origin requests
+      path: "/", // Make the cookie accessible to all routes
+      maxAge: 1 * 600 * 1000,
+    });
 
     const userData = {
       username: user.username,

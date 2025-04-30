@@ -117,6 +117,7 @@ module.exports = (sequelize, DataTypes) => {
   User.prototype.generateAccessToken = function () {
     return jwt.sign(
       {
+        id: this.id,
         username: this.username,
         email: this.email,
       },

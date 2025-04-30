@@ -11,7 +11,11 @@ const { commonMessages } = require("../services/commonMessages");
 module.exports = {
   async verifyJWT(req, res, next) {
     try {
-      const token = req.header("Authorization").replace("Bearer ", "");
+      let token = req.header("Authorization")?.replace("Bearer ", "");
+
+      if (!token && req.cookies?.auth_token) {
+        token = req.cookies.auth_token;
+      }
 
       if (!token) {
         return errorResponseWithoutData(res, commonMessages.badRequest, 400);
