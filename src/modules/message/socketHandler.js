@@ -25,11 +25,8 @@ function initializeSocket(io) {
 
   // Handle socket connection events
   io.on("connection", async (socket) => {
-    console.log(`User connected: ${socket.id}`);
-
     // Add userId and socket.id to userSockets
     userSockets[socket.userId] = socket.id;
-    console.log("userSockets after connection:", userSockets);
 
     // Send user details to the client
     socket.emit("userDetails", {
@@ -72,6 +69,8 @@ function initializeSocket(io) {
         });
 
         if (existingRooms.length > 0) {
+          socket.join(`room:${existingRooms[0].id}`);
+
           // Return existing room
           return callback({
             success: true,
@@ -286,12 +285,8 @@ function initializeSocket(io) {
           },
         });
 
-        console.log("Other participant:", otherParticipant.userId);
-
         // Notify other participant that messages were read if they're online
         const recipientSocketId = userSockets[otherParticipant.userId];
-        console.log("User sockets:", userSockets);
-        console.log("Recipient socket ID:", recipientSocketId);
         if (recipientSocketId) {
           io.to(recipientSocketId).emit("messagesRead", {
             roomId,
@@ -319,8 +314,6 @@ function initializeSocket(io) {
       if (socket.userId && userSockets[socket.userId]) {
         delete userSockets[socket.userId];
       }
-
-      console.log("userSockets after disconnection:", userSockets);
     });
   });
 }
