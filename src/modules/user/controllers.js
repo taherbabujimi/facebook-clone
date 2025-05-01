@@ -219,7 +219,7 @@ module.exports.userLogin = async (req, res) => {
 
     const accessToken = await user.generateAccessToken();
 
-    res.cookie("auth_token", accessToken, {
+    await res.cookie("auth_token", accessToken, {
       secure: process.env.NODE_ENV === "production", // Use HTTPS in production
       sameSite: "Lax", // Allow cookies for same-origin and some cross-origin requests
       path: "/", // Make the cookie accessible to all routes

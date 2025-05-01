@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const Models = require("../../models/index");
+const Sequelize = require("sequelize");
 
 // Track online users and their socket connections
 const userSockets = {}; // Mapping of userId to socket.id
@@ -53,28 +54,45 @@ function initializeSocket(io) {
         }
 
         // Check if a direct conversation already exists between these users
-        const existingRooms = await Models.Room.findAll({
+        const existingRoom = await Models.Room.findOne({
           include: [
             {
               model: Models.RoomParticipant,
               as: "participants",
-              where: { userId: socket.userId },
-            },
-            {
-              model: Models.RoomParticipant,
-              as: "participants",
-              where: { userId: recipientId },
+              where: {
+                userId: {
+                  [Sequelize.Op.in]: [socket.userId, recipientId],
+                },
+              },
+              required: true,
             },
           ],
+          // Use subquery to find rooms with exactly 2 participants with these IDs
+          where: {
+            id: {
+              [Sequelize.Op.in]: Sequelize.literal(`(
+                SELECT "roomId"
+                FROM "roomParticipants"
+                WHERE "userId" IN (:userId, :recipientId)
+                GROUP BY "roomId"
+                HAVING COUNT(DISTINCT "userId") = 2
+              )`),
+            },
+          },
+          replacements: {
+            userId: socket.userId,
+            recipientId: recipientId,
+          },
         });
 
-        if (existingRooms.length > 0) {
-          socket.join(`room:${existingRooms[0].id}`);
+        if (existingRoom) {
+          // If a room exists, join it
+          socket.join(`room:${existingRoom.id}`);
 
-          // Return existing room
+          // Return the existing room
           return callback({
             success: true,
-            roomId: existingRooms[0].id,
+            roomId: existingRoom.id,
             recipient: {
               id: recipient.id,
               username: recipient.username,
