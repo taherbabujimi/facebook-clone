@@ -204,6 +204,53 @@ function initializeSocket(io) {
       }
     });
 
+    // Delete a message
+    socket.on("deleteMessage", async (data, callback) => {
+      try {
+        const { messageId } = data;
+
+        // Check if message exists and belongs to the user
+        const message = await Models.Message.findOne({
+          where: {
+            id: messageId,
+            senderId: socket.userId,
+          },
+          include: [
+            {
+              model: Models.Room,
+              as: "room",
+              attributes: ["id"],
+            },
+          ],
+        });
+
+        if (!message) {
+          return callback({
+            success: false,
+            error:
+              "Message not found or you don't have permission to delete it",
+          });
+        }
+
+        // Delete message from database
+        await Models.Message.destroy({
+          where: { id: messageId, senderId: socket.userId },
+        });
+
+        // Notify room about the deleted message
+        io.to(`room:${message.room.id}`).emit("messageDeleted", {
+          messageId: messageId,
+          roomId: message.room.id,
+          deletedBy: socket.userId,
+        });
+
+        callback({ success: true });
+      } catch (error) {
+        console.error("Error deleting message:", error);
+        callback({ success: false, error: "Failed to delete message" });
+      }
+    });
+
     // Mark messages as read
     socket.on("markAsRead", async (data, callback) => {
       try {

@@ -8,6 +8,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "senderId",
         as: "sender",
       });
+
+      Message.belongsTo(models.Room, {
+        foreignKey: "roomId",
+        as: "room",
+      });
     }
   }
 

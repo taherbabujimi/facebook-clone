@@ -26,7 +26,7 @@ const getMessageHistorySchema = (body, res) => {
 
     return errorResponseWithoutData(
       res,
-      commonMessages.errorWhileValidatingValues,
+      `${commonMessages.errorWhileValidatingValues}: ${error}`,
       400
     );
   }
