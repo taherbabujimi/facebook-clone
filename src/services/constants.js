@@ -21,6 +21,8 @@ const roomParticipantStatus = ["active", "left", "removed"];
 
 const messageStatus = ["sent", "delivered", "read", "deleted"];
 
+const reactionTypes = ["like", "love", "laugh", "wow", "sad", "angry"];
+
 module.exports = {
   requestStatus,
   notificationType,
@@ -30,4 +32,5 @@ module.exports = {
   roomType,
   roomParticipantStatus,
   messageStatus,
+  reactionTypes,
 };

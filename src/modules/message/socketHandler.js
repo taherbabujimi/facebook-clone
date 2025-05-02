@@ -371,6 +371,28 @@ function initializeSocket(io) {
       }
     });
 
+    socket.on("addReaction", async (data, callback) => {
+      try {
+        const { messageId, reaction, userId } = data;
+
+        console.log("USER ID: ", userId);
+        console.log("MESSAGE ID: ", messageId);
+        console.log("REACTION: ", reaction);
+
+        // const alreadyReactedByUser = await
+
+        // await Models.MessageReaction.create({})
+
+        callback({ success: true });
+      } catch (error) {
+        console.error("Error adding reaction to the message:", error);
+        callback({
+          success: false,
+          error: "Failed to add reaction to the message",
+        });
+      }
+    });
+
     // Handle disconnection
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
