@@ -2,7 +2,14 @@ const { Model } = require("sequelize");
 const { reactionTypes } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
-  class MessageReaction extends Model {}
+  class MessageReaction extends Model {
+    static associate(models) {
+      MessageReaction.belongsTo(models.Message, {
+        foreignKey: "messageId",
+        as: "reactedTo",
+      });
+    }
+  }
 
   MessageReaction.init(
     {

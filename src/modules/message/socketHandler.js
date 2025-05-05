@@ -327,6 +327,10 @@ function initializeSocket(io) {
               as: "sender",
               attributes: ["id", "username"],
             },
+            {
+              model: Models.MessageReaction,
+              as: "reactions",
+            },
           ],
         });
 
@@ -375,20 +379,86 @@ function initializeSocket(io) {
       try {
         const { messageId, reaction, userId } = data;
 
-        console.log("USER ID: ", userId);
-        console.log("MESSAGE ID: ", messageId);
-        console.log("REACTION: ", reaction);
+        // Check if the user has already reacted
+        const alreadyReactedByUser = await Models.MessageReaction.findOne({
+          where: { messageId, userId, reactionType: reaction },
+        });
 
-        // const alreadyReactedByUser = await
+        if (alreadyReactedByUser) {
+          console.error("User already reacted to the message");
 
-        // await Models.MessageReaction.create({})
+          return callback({
+            success: false,
+            error: "User already reacted to the message",
+          });
+        }
+
+        // Add the reaction
+        await Models.MessageReaction.create({
+          messageId,
+          userId,
+          reactionType: reaction,
+        });
+
+        // Fetch updated reactions for the message
+        const updatedReactions = await Models.MessageReaction.findAll({
+          where: { messageId },
+          attributes: ["reactionType", "userId"],
+        });
+
+        // Notify all participants in the room about the updated reactions
+        const message = await Models.Message.findByPk(messageId, {
+          attributes: ["roomId"],
+        });
+
+        io.to(`room:${message.roomId}`).emit("messageReactionUpdated", {
+          messageId,
+          roomId: message.roomId,
+          reactions: updatedReactions,
+        });
 
         callback({ success: true });
       } catch (error) {
-        console.error("Error adding reaction to the message:", error);
+        console.error("Error adding reaction to the message: ", error);
         callback({
           success: false,
           error: "Failed to add reaction to the message",
+        });
+      }
+    });
+
+    socket.on("removeReaction", async (data, callback) => {
+      try {
+        const { messageId, reaction, userId } = data;
+
+        // Remove the reaction
+        await Models.MessageReaction.destroy({
+          where: { messageId, userId, reactionType: reaction },
+        });
+
+        // Fetch updated reactions for the message
+        const updatedReactions = await Models.MessageReaction.findAll({
+          where: { messageId },
+          attributes: ["reactionType", "userId"],
+        });
+
+        // Notify all participants in the room about the updated reactions
+        const message = await Models.Message.findByPk(messageId, {
+          attributes: ["roomId"],
+        });
+
+        io.to(`room:${message.roomId}`).emit("messageReactionUpdated", {
+          messageId,
+          roomId: message.roomId,
+          reactions: updatedReactions,
+        });
+
+        callback({ success: true });
+      } catch (error) {
+        console.error("Error removing reaction from the message: ", error);
+        callback({
+          success: false,
+          error: "Failed to remove reaction from the message",
         });
       }
     });
