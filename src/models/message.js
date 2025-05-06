@@ -18,6 +18,11 @@ module.exports = (sequelize, DataTypes) => {
         foreignKey: "messageId",
         as: "reactions",
       });
+
+      Message.belongsTo(models.Post, {
+        foreignKey: "postId",
+        as: "post",
+      });
     }
   }
 
@@ -52,6 +57,13 @@ module.exports = (sequelize, DataTypes) => {
       status: {
         type: DataTypes.ENUM(...messageStatus),
         defaultValue: messageStatus[0],
+      },
+      postId: {
+        type: DataTypes.INTEGER,
+        references: {
+          model: "posts",
+          key: "id",
+        },
       },
     },
     {

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 const Models = require("../../models/index");
 const Sequelize = require("sequelize");
+const { cloudinary } = require("../../config/cloudinary");
 
 // Track online users and their socket connections
 const userSockets = {}; // Mapping of userId to socket.id
@@ -331,7 +332,27 @@ function initializeSocket(io) {
               model: Models.MessageReaction,
               as: "reactions",
             },
+            {
+              model: Models.Post,
+              as: "post",
+            },
           ],
+        });
+
+        messages.map((message) => {
+          if (message.dataValues.post) {
+            message.dataValues.post.dataValues = {
+              ...message.dataValues.post.dataValues,
+              fileUrl: cloudinary.url(
+                message.dataValues.post.dataValues.filePublicId,
+                {
+                  resource_type:
+                    message.dataValues.post.dataValues.fileResourceType,
+                } // Add this option
+              ),
+            };
+            console.log("MESSAGE: ", message.dataValues.post);
+          }
         });
 
         // Mark messages from other user as read

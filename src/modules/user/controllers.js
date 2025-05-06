@@ -310,7 +310,7 @@ module.exports.forgotPassword = async (req, res) => {
 
     return errorResponseWithoutData(
       res,
-      `${messages.errorForgotPassword}: ${rror}`,
+      `${messages.errorForgotPassword}: ${error}`,
       400
     );
   }

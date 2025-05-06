@@ -3,7 +3,10 @@ const {
   successResponseData,
 } = require("../../services/responses");
 const { messages } = require("./messages");
-const { getMessageHistorySchema } = require("./validations");
+const {
+  getMessageHistorySchema,
+  sendPostInChatSchema,
+} = require("./validations");
 const Models = require("../../models/index");
 const { Op } = require("sequelize");
 
@@ -62,5 +65,39 @@ module.exports.getMessageHistory = async (req, res) => {
       `${messages.errorGettingHistory}: ${error}`,
       400
     );
+  }
+};
+
+module.exports.sendPostInChat = async (req, res) => {
+  try {
+    const validationResponse = sendPostInChatSchema(req.body);
+    if (validationResponse !== false) return;
+
+    const { roomId, postId } = req.body;
+
+    const roomExists = await Models.Room.findByPk(roomId);
+
+    if (!roomExists) {
+      return errorResponseWithoutData(res, messages.roomNotExists, 400);
+    }
+
+    const postExists = await Models.Post.findByPk(postId);
+
+    if (!postExists) {
+      return errorResponseWithoutData(res, messages.postNotExists, 400);
+    }
+
+    const message = await Models.Message.create({
+      roomId,
+      senderId: req.user.id,
+      content: "message content is the shared post",
+      postId: postId,
+    });
+
+    return successResponseData(res, message, 200, messages.postSendSuccess);
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorSendingPost, 400);
   }
 };
