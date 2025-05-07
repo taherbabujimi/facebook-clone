@@ -24,6 +24,8 @@ const messages = {
   errorGettingFriends: "Error while getting user friends.",
   successGettingFriends: "Successfully fetched user friends.",
   requestNotFound: "Friend request not found.",
+  blockList:
+    "Either user with provided ID has blocked you or the user is in your block list.",
 };
 
 module.exports = {

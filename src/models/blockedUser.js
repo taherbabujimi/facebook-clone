@@ -1,17 +1,20 @@
 const { Model } = require("sequelize");
-const { reactionTypes } = require("../services/constants");
 
 module.exports = (sequelize, DataTypes) => {
-  class MessageReaction extends Model {
+  class BlockedUser extends Model {
     static associate(models) {
-      this.belongsTo(models.Message, {
-        foreignKey: "messageId",
-        as: "reactedTo",
+      this.belongsTo(models.User, {
+        foreignKey: "blockedBy",
+        as: "blocker",
+      });
+      this.belongsTo(models.User, {
+        foreignKey: "blockedUser",
+        as: "blocked",
       });
     }
   }
 
-  MessageReaction.init(
+  BlockedUser.init(
     {
       id: {
         type: DataTypes.INTEGER,
@@ -19,15 +22,7 @@ module.exports = (sequelize, DataTypes) => {
         primaryKey: true,
         allowNull: false,
       },
-      messageId: {
-        type: DataTypes.INTEGER,
-        references: {
-          model: "messages",
-          key: "id",
-        },
-        allowNull: false,
-      },
-      userId: {
+      blockedBy: {
         type: DataTypes.INTEGER,
         references: {
           model: "users",
@@ -35,19 +30,29 @@ module.exports = (sequelize, DataTypes) => {
         },
         allowNull: false,
       },
-      reactionType: {
-        type: DataTypes.ENUM(...reactionTypes),
+      blockedUser: {
+        type: DataTypes.INTEGER,
+        references: {
+          model: "users",
+          key: "id",
+        },
         allowNull: false,
-        defaultValue: null,
       },
     },
     {
       sequelize,
-      modelName: "MessageReaction",
-      tableName: "messageReactions",
+      modelName: "BlockedUser",
+      tableName: "blockedUsers",
       timestamps: true,
+      indexes: [
+        {
+          unique: true,
+          fields: ["blockedBy", "blockedUser"],
+          name: "blockedUser_unique_constraint",
+        },
+      ],
     }
   );
 
-  return MessageReaction;
+  return BlockedUser;
 };

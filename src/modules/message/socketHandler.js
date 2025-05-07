@@ -351,7 +351,6 @@ function initializeSocket(io) {
                 } // Add this option
               ),
             };
-            console.log("MESSAGE: ", message.dataValues.post);
           }
         });
 

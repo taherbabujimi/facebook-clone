@@ -4,22 +4,22 @@ const { messageStatus } = require("../services/constants");
 module.exports = (sequelize, DataTypes) => {
   class Message extends Model {
     static associate(models) {
-      Message.belongsTo(models.User, {
+      this.belongsTo(models.User, {
         foreignKey: "senderId",
         as: "sender",
       });
 
-      Message.belongsTo(models.Room, {
+      this.belongsTo(models.Room, {
         foreignKey: "roomId",
         as: "room",
       });
 
-      Message.hasMany(models.MessageReaction, {
+      this.hasMany(models.MessageReaction, {
         foreignKey: "messageId",
         as: "reactions",
       });
 
-      Message.belongsTo(models.Post, {
+      this.belongsTo(models.Post, {
         foreignKey: "postId",
         as: "post",
       });

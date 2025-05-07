@@ -6,6 +6,9 @@ const {
   verifyEmail,
   searchUser,
   updateUserProfile,
+  blockUser,
+  unblockUser,
+  getUserBlockList,
 } = require("./controllers");
 const { verifyJWT } = require("../../middlewares/authMiddleware");
 
@@ -24,5 +27,11 @@ userRoute.get("/verifyEmail", verifyEmail);
 userRoute.get("/searchUser", verifyJWT, searchUser);
 
 userRoute.put("/updateUserProfile", verifyJWT, updateUserProfile);
+
+userRoute.post("/blockUser", verifyJWT, blockUser);
+
+userRoute.delete("/unblockUser", verifyJWT, unblockUser);
+
+userRoute.get("/getUserBlockList", verifyJWT, getUserBlockList);
 
 module.exports = userRoute;

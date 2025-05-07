@@ -18,6 +18,8 @@ const {
   resetPasswordSchema,
   searchUserSchema,
   updateUserProfileSchema,
+  blockUserSchema,
+  unblockUserSchema,
 } = require("./validations");
 const { countries } = require("../../services/country");
 const { generateForgotPasswordToken } = require("./helpers");
@@ -30,6 +32,7 @@ const {
 } = require("./constants");
 const { emailTransport } = require("../../services/mailTransport");
 const { client } = require("../../config/redis");
+const { sequelize } = require("../../models/index");
 
 module.exports.registerUser = async (req, res) => {
   try {
@@ -380,11 +383,17 @@ module.exports.searchUser = async (req, res) => {
     const validationResponse = searchUserSchema(req.body, res);
     if (validationResponse !== false) return;
 
+    const userBlockedBy = await Models.BlockedUser.findAll({
+      where: { blockedUser: req.user.id },
+    });
+
+    const blockedBy = userBlockedBy.map((item) => item.dataValues.blockedBy);
+
     const { username } = req.body;
 
     const user = await Models.User.findAll({
       where: { username: { [Op.like]: `%${username}%` }, isVerified: true },
-      attributes: ["username", "profilePublicId"],
+      attributes: ["username", "profilePublicId", "id"],
       limit,
       offset,
     });
@@ -392,6 +401,10 @@ module.exports.searchUser = async (req, res) => {
     const data = [];
 
     user.map(async (item) => {
+      if (blockedBy.includes(item.dataValues.id)) {
+        return;
+      }
+
       let profilePic;
 
       if (item.dataValues.profilePublicId === null) {
@@ -486,5 +499,114 @@ module.exports.updateUserProfile = async (req, res) => {
       `${messages.errorUpdateUser}: ${error}`,
       400
     );
+  }
+};
+
+module.exports.blockUser = async (req, res) => {
+  let transaction;
+  try {
+    const validationResponse = blockUserSchema(req.body, res);
+    if (validationResponse !== false) return;
+
+    const { blockedUserId } = req.body;
+
+    const userExists = await Models.User.findByPk(blockedUserId);
+
+    if (!userExists) {
+      return errorResponseWithoutData(res, messages.userIdNotExists, 400);
+    }
+
+    transaction = await sequelize.transaction();
+
+    await Models.Friend.destroy({
+      where: {
+        [Op.or]: [
+          { userId: req.user.id, friendId: blockedUserId },
+          { userId: blockedUserId, friendId: req.user.id },
+        ],
+      },
+      transaction,
+    });
+
+    const blockedUser = await Models.BlockedUser.create(
+      {
+        blockedBy: req.user.id,
+        blockedUser: blockedUserId,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
+
+    return successResponseData(
+      res,
+      blockedUser,
+      200,
+      messages.userBlockedSuccess
+    );
+  } catch (error) {
+    await transaction.rollback();
+
+    console.log(error);
+
+    if (
+      error.parent &&
+      error.parent.constraint === "blockedUser_unique_constraint"
+    ) {
+      return errorResponseWithoutData(res, messages.userAlreadyBlocked, 400);
+    }
+
+    return errorResponseWithoutData(res, messages.errorBlockingUser, 400);
+  }
+};
+
+module.exports.unblockUser = async (req, res) => {
+  try {
+    const validationResponse = unblockUserSchema(req.body, res);
+    if (validationResponse !== false) return;
+
+    const { unblockUserId } = req.body;
+
+    const blockedUserExists = await Models.BlockedUser.findOne({
+      where: { blockedBy: req.user.id, blockedUser: unblockUserId },
+    });
+
+    if (!blockedUserExists) {
+      return errorResponseWithoutData(res, messages.userNotInBlockedList, 400);
+    }
+
+    await Models.BlockedUser.destroy({
+      where: {
+        blockedBy: req.user.id,
+        blockedUser: unblockUserId,
+      },
+    });
+
+    return successResponseWithoutData(res, messages.successUnblockingUser, 200);
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorUnblockingUser, 400);
+  }
+};
+
+module.exports.getUserBlockList = async (req, res) => {
+  try {
+    const blockList = await Models.BlockedUser.findAll({
+      where: {
+        blockedBy: req.user.id,
+      },
+    });
+
+    return successResponseData(
+      res,
+      blockList,
+      200,
+      messages.blockListFetchSuccess
+    );
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(res, messages.errorGettingBlockList, 400);
   }
 };

@@ -26,6 +26,16 @@ let messages = {
   userFoundSuccess: "Searched users fetched successfully.",
   errorUpdateUser: "Error while updating user profile.",
   updateUserSuccess: "User profile updated successfully.",
+  errorBlockingUser: "Error while blocking a user.",
+  userIdNotExists: "User with this ID does not exists.",
+  userBlockedSuccess: "User blocked successfully.",
+  userAlreadyBlocked: "User with provided ID is already blocked by you.",
+  errorUnblockingUser: "Error while unblocking the user.",
+  userNotInBlockedList:
+    "User with provided ID does not present in your blocked list.",
+  successUnblockingUser: "User unblocked successfully.",
+  errorGettingBlockList: "Error while getting the block list for the user.",
+  blockListFetchSuccess: "Block list fetched successfully.",
 };
 
 module.exports = {

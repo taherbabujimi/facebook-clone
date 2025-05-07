@@ -38,6 +38,19 @@ module.exports.sendFriendRequest = async (req, res) => {
       );
     }
 
+    const userInBlockList = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          { blockedBy: req.user.id, blockedUser: friendId },
+          { blockedBy: friendId, blockedUser: req.user.id },
+        ],
+      },
+    });
+
+    if (userInBlockList) {
+      return errorResponseWithoutData(res, messages.blockList, 400);
+    }
+
     const alreadyFriend = await Models.Friend.findOne({
       where: {
         [Op.or]: [

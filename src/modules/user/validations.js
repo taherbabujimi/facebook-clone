@@ -194,6 +194,62 @@ const updateUserProfileSchema = (body, res) => {
   }
 };
 
+const blockUserSchema = (body, res) => {
+  try {
+    const Schema = joi.object({
+      blockedUserId: joi.number().required(),
+    });
+
+    const validationResult = Schema.validate(body);
+
+    if (validationResult.error) {
+      return errorResponseWithoutData(
+        res,
+        `${commonMessages.errorWhileValidatingValues}: ${validationResult.error}`,
+        400
+      );
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(
+      res,
+      commonMessages.errorWhileValidatingValues,
+      400
+    );
+  }
+};
+
+const unblockUserSchema = (body, res) => {
+  try {
+    const Schema = joi.object({
+      unblockUserId: joi.number().required(),
+    });
+
+    const validationResult = Schema.validate(body);
+
+    if (validationResult.error) {
+      return errorResponseWithoutData(
+        res,
+        `${commonMessages.errorWhileValidatingValues}: ${validationResult.error}`,
+        400
+      );
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.log(error);
+
+    return errorResponseWithoutData(
+      res,
+      commonMessages.errorWhileValidatingValues,
+      400
+    );
+  }
+};
+
 module.exports = {
   userRegisterSchema,
   userLoginSchema,
@@ -201,4 +257,6 @@ module.exports = {
   resetPasswordSchema,
   searchUserSchema,
   updateUserProfileSchema,
+  blockUserSchema,
+  unblockUserSchema,
 };
