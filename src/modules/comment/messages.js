@@ -13,6 +13,8 @@ const messages = {
   parentCommentNotExists: "Parent comment with this ID does not exists.",
   parentCommentNotBelongsToPost:
     "Parent comment does not belong to provided postId",
+  postOwnerBlocked:
+    "Either the owner of this post has blocked you or the post owner is inside your blocklist.",
 };
 
 module.exports = {

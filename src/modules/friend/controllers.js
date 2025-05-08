@@ -380,6 +380,20 @@ module.exports.getRecommendedFriends = async (req, res) => {
     const currentPage = parseInt(req.query.page) || 1; // current page number (starts from 1)
     const offset = (currentPage - 1) * limit; // calculate the offset
 
+    const userBlockedBy = await Models.BlockedUser.findAll({
+      where: {
+        [Op.or]: [{ blockedBy: req.user.id }, { blockedUser: req.user.id }],
+      },
+    });
+
+    const blockedBy = userBlockedBy.map((item) => {
+      if (item.dataValues.blockedBy === req.user.id) {
+        return item.dataValues.blockedUser;
+      }
+
+      return item.dataValues.blockedBy;
+    });
+
     // Get existing friends and friend requests
     const existingConnections = await Models.Friend.findAll({
       where: {
@@ -421,6 +435,10 @@ module.exports.getRecommendedFriends = async (req, res) => {
 
     // Score each potential friend
     const scoredRecommendations = potentialFriends.map((user) => {
+      if (blockedBy.includes(user.dataValues.id)) {
+        return;
+      }
+
       const scoreData = calculateRecommendationScore(
         req.user,
         user,

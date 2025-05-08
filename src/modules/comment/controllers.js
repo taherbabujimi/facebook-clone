@@ -13,6 +13,7 @@ const {
 const Models = require("../../models/index");
 const { notificationType, entityType } = require("../../services/constants");
 const { sequelize } = require("../../models/index");
+const { Op } = require("sequelize");
 
 module.exports.addComment = async (req, res) => {
   let transaction;
@@ -47,6 +48,25 @@ module.exports.addComment = async (req, res) => {
     const postExists = await Models.Post.findByPk(postId);
     if (!postExists) {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
+    }
+
+    const blockedUser = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          {
+            blockedBy: req.user.id,
+            blockedUser: postExists.dataValues.createdBy,
+          },
+          {
+            blockedBy: postExists.dataValues.createdBy,
+            blockedUser: req.user.id,
+          },
+        ],
+      },
+    });
+
+    if (blockedUser) {
+      return errorResponseWithoutData(res, messages.postOwnerBlocked, 400);
     }
 
     // Start transaction
@@ -123,6 +143,25 @@ module.exports.getComments = async (req, res) => {
 
     if (!postExists) {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
+    }
+
+    const blockedUser = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          {
+            blockedBy: req.user.id,
+            blockedUser: postExists.dataValues.createdBy,
+          },
+          {
+            blockedBy: postExists.dataValues.createdBy,
+            blockedUser: req.user.id,
+          },
+        ],
+      },
+    });
+
+    if (blockedUser) {
+      return errorResponseWithoutData(res, messages.postOwnerBlocked, 400);
     }
 
     if (parentId !== undefined) {

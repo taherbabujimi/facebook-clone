@@ -6,6 +6,7 @@ const {
 const { messages } = require("./messages");
 const { followUnfollowUserSchema } = require("./validations");
 const Models = require("../../models/index");
+const { Op } = require("sequelize");
 
 module.exports.followUnfollowUser = async (req, res) => {
   try {
@@ -16,6 +17,19 @@ module.exports.followUnfollowUser = async (req, res) => {
 
     if (followingId === req.user.id) {
       return errorResponseWithoutData(res, messages.cannotFollowYourself, 400);
+    }
+
+    const userBlocked = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          { blockedBy: req.user.id, blockedUser: followingId },
+          { blockedBy: followingId, blockedUser: req.user.id },
+        ],
+      },
+    });
+
+    if (userBlocked) {
+      return errorResponseWithoutData(res, messages.userBlocked, 400);
     }
 
     const alreadyFollowed = await Models.Follower.findOne({

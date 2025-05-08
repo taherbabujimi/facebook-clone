@@ -384,10 +384,18 @@ module.exports.searchUser = async (req, res) => {
     if (validationResponse !== false) return;
 
     const userBlockedBy = await Models.BlockedUser.findAll({
-      where: { blockedUser: req.user.id },
+      where: {
+        [Op.or]: [{ blockedBy: req.user.id }, { blockedUser: req.user.id }],
+      },
     });
 
-    const blockedBy = userBlockedBy.map((item) => item.dataValues.blockedBy);
+    const blockedBy = userBlockedBy.map((item) => {
+      if (item.dataValues.blockedBy === req.user.id) {
+        return item.dataValues.blockedUser;
+      }
+
+      return item.dataValues.blockedBy;
+    });
 
     const { username } = req.body;
 
@@ -523,6 +531,16 @@ module.exports.blockUser = async (req, res) => {
         [Op.or]: [
           { userId: req.user.id, friendId: blockedUserId },
           { userId: blockedUserId, friendId: req.user.id },
+        ],
+      },
+      transaction,
+    });
+
+    await Models.Follower.destroy({
+      where: {
+        [Op.or]: [
+          { followerId: req.user.id, followingId: blockedUserId },
+          { followerId: blockedUserId, followingId: req.user.id },
         ],
       },
       transaction,

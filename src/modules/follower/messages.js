@@ -7,6 +7,8 @@ const messages = {
   errorGettingFollowings: "Error while getting followings.",
   successGettingFollowings: "Successfully fetched followings.",
   cannotFollowYourself: "You can't follow yourself.",
+  userBlocked:
+    "Either user with provided ID has blocked you or the user is in your block list.",
 };
 
 module.exports = { messages };

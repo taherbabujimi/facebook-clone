@@ -18,6 +18,10 @@ const messages = {
   successUserFeed: "Successfully fetched user's feed.",
   cantAccessPrivatePosts:
     "Access denied: You must be a friend of the post's owner to view this post.",
+  blockList:
+    "Either user with provided ID has blocked you or the user is in your block list.",
+  postOwnerBlocked:
+    "Either the owner of this post has blocked you or the post owner is inside your blocklist.",
 };
 
 module.exports = {

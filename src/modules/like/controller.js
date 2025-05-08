@@ -7,6 +7,7 @@ const {
 const { messages } = require("./messages");
 const { notificationType, entityType } = require("../../services/constants");
 const { sequelize } = require("../../models/index");
+const { Op } = require("sequelize");
 
 module.exports.likeUnlikePost = async (req, res) => {
   let transaction;
@@ -21,6 +22,25 @@ module.exports.likeUnlikePost = async (req, res) => {
 
     if (!postExists) {
       return errorResponseWithoutData(res, messages.postnotExists, 400);
+    }
+
+    const blockedUser = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          {
+            blockedBy: req.user.id,
+            blockedUser: postExists.dataValues.createdBy,
+          },
+          {
+            blockedBy: postExists.dataValues.createdBy,
+            blockedUser: req.user.id,
+          },
+        ],
+      },
+    });
+
+    if (blockedUser) {
+      return errorResponseWithoutData(res, messages.postOwnerBlocked, 400);
     }
 
     const likeExists = await Models.Like.findOne({

@@ -1,4 +1,3 @@
-// const cloudinary = require("cloudinary").v2;
 const Models = require("../../models/index");
 const {
   errorResponseWithoutData,
@@ -98,6 +97,29 @@ module.exports.addRepostPost = async (req, res) => {
         return errorResponseWithoutData(res, messages.postNotExists, 400);
       }
 
+      const blockedUser = await Models.BlockedUser.findOne({
+        where: {
+          [Op.or]: [
+            {
+              blockedBy: req.user.id,
+              blockedUser: originalPost.dataValues.createdBy,
+            },
+            {
+              blockedBy: originalPost.dataValues.createdBy,
+              blockedUser: req.user.id,
+            },
+          ],
+        },
+      });
+
+      if (blockedUser) {
+        return errorResponseWithoutData(
+          res,
+          messages.blockpostOwnerBlockedList,
+          400
+        );
+      }
+
       // Set originalPostId
       postData.originalPostId = originalPostId;
 
@@ -179,6 +201,19 @@ module.exports.getSinglePost = async (req, res) => {
 
     if (!post) {
       return errorResponseWithoutData(res, messages.postNotExists, 400);
+    }
+
+    const blockedUser = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          { blockedBy: req.user.id, blockedUser: post.dataValues.createdBy },
+          { blockedBy: post.dataValues.createdBy, blockedUser: req.user.id },
+        ],
+      },
+    });
+
+    if (blockedUser) {
+      return errorResponseWithoutData(res, messages.postOwnerBlocked, 400);
     }
 
     if (
@@ -368,6 +403,19 @@ module.exports.getPosts = async (req, res) => {
     const limit = parseInt(pageSize || 10);
 
     if (profileId !== undefined) {
+      const blockedUser = await Models.BlockedUser.findOne({
+        where: {
+          [Op.or]: [
+            { blockedBy: req.user.id, blockedUser: profileId },
+            { blockedBy: profileId, blockedUser: req.user.id },
+          ],
+        },
+      });
+
+      if (blockedUser) {
+        return errorResponseWithoutData(res, messages.blockList, 400);
+      }
+
       const friend = await Models.Friend.findOne({
         where: {
           [Op.or]: [
