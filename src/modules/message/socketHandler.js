@@ -1,7 +1,13 @@
 const jwt = require("jsonwebtoken");
-const Models = require("../../models/index");
-const Sequelize = require("sequelize");
-const { cloudinary } = require("../../config/cloudinary");
+const {
+  startConversation,
+  sendMessage,
+  deleteMessage,
+  markAsRead,
+  loadMessages,
+  addReaction,
+  removeReaction,
+} = require("./controllers");
 
 // Track online users and their socket connections
 const userSockets = {}; // Mapping of userId to socket.id
@@ -39,104 +45,15 @@ function initializeSocket(io) {
     // Start a new direct conversation or get existing one
     socket.on("startConversation", async (data, callback) => {
       try {
-        const { recipientId } = data;
+        const response = await startConversation(
+          data,
+          socket,
+          callback,
+          userSockets,
+          io
+        );
 
-        if (recipientId === socket.userId) {
-          return callback({
-            success: false,
-            error: "Cannot start conversation with yourself",
-          });
-        }
-
-        // Check if recipient exists
-        const recipient = await Models.User.findByPk(recipientId);
-        if (!recipient) {
-          return callback({ success: false, error: "Recipient not found" });
-        }
-
-        // Check if a direct conversation already exists between these users
-        const existingRoom = await Models.Room.findOne({
-          include: [
-            {
-              model: Models.RoomParticipant,
-              as: "participants",
-              where: {
-                userId: {
-                  [Sequelize.Op.in]: [socket.userId, recipientId],
-                },
-              },
-              required: true,
-            },
-          ],
-          // Use subquery to find rooms with exactly 2 participants with these IDs
-          where: {
-            id: {
-              [Sequelize.Op.in]: Sequelize.literal(`(
-                SELECT "roomId"
-                FROM "roomParticipants"
-                WHERE "userId" IN (:userId, :recipientId)
-                GROUP BY "roomId"
-                HAVING COUNT(DISTINCT "userId") = 2
-              )`),
-            },
-          },
-          replacements: {
-            userId: socket.userId,
-            recipientId: recipientId,
-          },
-        });
-
-        if (existingRoom) {
-          // If a room exists, join it
-          socket.join(`room:${existingRoom.id}`);
-
-          // Return the existing room
-          return callback({
-            success: true,
-            roomId: existingRoom.id,
-            recipient: {
-              id: recipient.id,
-              username: recipient.username,
-            },
-          });
-        }
-
-        // Create a new room
-        const room = await Models.Room.create({
-          name: null, // No name for direct chats
-        });
-
-        // Add both users as participants
-        await Models.RoomParticipant.create({
-          roomId: room.id,
-          userId: socket.userId,
-        });
-
-        await Models.RoomParticipant.create({
-          roomId: room.id,
-          userId: recipientId,
-        });
-
-        // Subscribe the current user to this room
-        socket.join(`room:${room.id}`);
-
-        // If the recipient is online, subscribe them too
-        const recipientSocketId = userSockets[recipientId];
-        if (recipientSocketId) {
-          const recipientSocket = io.sockets.sockets.get(recipientSocketId);
-          if (recipientSocket) {
-            recipientSocket.join(`room:${room.id}`);
-          }
-        }
-
-        callback({
-          success: true,
-          roomId: room.id,
-          recipient: {
-            id: recipient.id,
-            username: recipient.username,
-          },
-        });
+        return response;
       } catch (error) {
         console.error("Error starting conversation:", error);
         callback({ success: false, error: "Failed to start conversation" });
@@ -146,59 +63,15 @@ function initializeSocket(io) {
     // Send message to a conversation
     socket.on("sendMessage", async (messageData, callback) => {
       try {
-        const { roomId, content } = messageData;
+        const response = await sendMessage(
+          messageData,
+          socket,
+          callback,
+          userSockets,
+          io
+        );
 
-        // Check if user is part of the room
-        const participation = await Models.RoomParticipant.findOne({
-          where: {
-            roomId: roomId,
-            userId: socket.userId,
-          },
-        });
-
-        if (!participation) {
-          return callback({
-            success: false,
-            error: "You are not a participant of this conversation",
-          });
-        }
-
-        // Create message in database
-        const message = await Models.Message.create({
-          roomId: roomId,
-          senderId: socket.userId,
-          content: content,
-          isRead: false, // Initialize as unread
-        });
-
-        // Find the other participant
-        const otherParticipant = await Models.RoomParticipant.findOne({
-          where: {
-            roomId: roomId,
-            userId: { [Models.Sequelize.Op.ne]: socket.userId },
-          },
-        });
-
-        // Broadcast message to the room (which includes both participants if online)
-        io.to(`room:${roomId}`).emit("receiveMessage", {
-          id: message.id,
-          roomId: roomId,
-          senderId: socket.userId,
-          senderName: socket.user.username,
-          content: content,
-          createdAt: message.createdAt,
-          isRead: false,
-        });
-
-        // If the other participant is online, mark as delivered
-        const recipientSocketId = userSockets[otherParticipant.userId];
-        if (recipientSocketId) {
-          // Message is delivered but not yet read
-        } else {
-          // Recipient is offline, message will be marked as delivered when they connect
-        }
-
-        callback({ success: true, messageId: message.id });
+        return response;
       } catch (error) {
         console.error("Error sending message:", error);
         callback({ success: false, error: "Failed to send message" });
@@ -208,44 +81,9 @@ function initializeSocket(io) {
     // Delete a message
     socket.on("deleteMessage", async (data, callback) => {
       try {
-        const { messageId } = data;
+        const response = await deleteMessage(data, callback, io, socket);
 
-        // Check if message exists and belongs to the user
-        const message = await Models.Message.findOne({
-          where: {
-            id: messageId,
-            senderId: socket.userId,
-          },
-          include: [
-            {
-              model: Models.Room,
-              as: "room",
-              attributes: ["id"],
-            },
-          ],
-        });
-
-        if (!message) {
-          return callback({
-            success: false,
-            error:
-              "Message not found or you don't have permission to delete it",
-          });
-        }
-
-        // Delete message from database
-        await Models.Message.destroy({
-          where: { id: messageId, senderId: socket.userId },
-        });
-
-        // Notify room about the deleted message
-        io.to(`room:${message.room.id}`).emit("messageDeleted", {
-          messageId: messageId,
-          roomId: message.room.id,
-          deletedBy: socket.userId,
-        });
-
-        callback({ success: true });
+        return response;
       } catch (error) {
         console.error("Error deleting message:", error);
         callback({ success: false, error: "Failed to delete message" });
@@ -255,41 +93,18 @@ function initializeSocket(io) {
     // Mark messages as read
     socket.on("markAsRead", async (data, callback) => {
       try {
-        const { roomId } = data;
-
-        // Update all unread messages in this room sent by the other participant
-        const updatedMessages = await Models.Message.update(
-          { isRead: true },
-          {
-            where: {
-              roomId: roomId,
-              senderId: { [Models.Sequelize.Op.ne]: socket.userId },
-              isRead: false,
-            },
-            returning: true,
-          }
+        const response = await markAsRead(
+          data,
+          callback,
+          io,
+          socket,
+          userSockets
         );
 
-        // Find the other participant
-        const otherParticipant = await Models.RoomParticipant.findOne({
-          where: {
-            roomId: roomId,
-            userId: { [Models.Sequelize.Op.ne]: socket.userId },
-          },
-        });
-
-        // Notify other participant that messages were read if they're online
-        const recipientSocketId = userSockets[otherParticipant.userId];
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit("messagesRead", {
-            roomId,
-            readBy: socket.userId,
-          });
-        }
-
-        callback({ success: true, messagesRead: updatedMessages[0] });
+        return response;
       } catch (error) {
         console.error("Error marking messages as read:", error);
+
         callback({ success: false, error: "Failed to mark messages as read" });
       }
     });
@@ -297,98 +112,15 @@ function initializeSocket(io) {
     // Load messages for a specific conversation
     socket.on("loadMessages", async (data, callback) => {
       try {
-        const { roomId, page = 1, limit = 20 } = data;
-
-        // Check if user is part of the room
-        const participation = await Models.RoomParticipant.findOne({
-          where: {
-            roomId: roomId,
-            userId: socket.userId,
-          },
-        });
-
-        if (!participation) {
-          return callback({
-            success: false,
-            error: "You are not a participant of this conversation",
-          });
-        }
-
-        // Get messages with pagination
-        const offset = (page - 1) * limit;
-
-        const messages = await Models.Message.findAll({
-          where: { roomId: roomId },
-          limit: limit,
-          offset: offset,
-          order: [["id", "DESC"]],
-          include: [
-            {
-              model: Models.User,
-              as: "sender",
-              attributes: ["id", "username"],
-            },
-            {
-              model: Models.MessageReaction,
-              as: "reactions",
-            },
-            {
-              model: Models.Post,
-              as: "post",
-            },
-          ],
-        });
-
-        messages.map((message) => {
-          if (message.dataValues.post) {
-            message.dataValues.post.dataValues = {
-              ...message.dataValues.post.dataValues,
-              fileUrl: cloudinary.url(
-                message.dataValues.post.dataValues.filePublicId,
-                {
-                  resource_type:
-                    message.dataValues.post.dataValues.fileResourceType,
-                } // Add this option
-              ),
-            };
-          }
-        });
-
-        // Mark messages from other user as read
-        await Models.Message.update(
-          { isRead: true },
-          {
-            where: {
-              roomId: roomId,
-              senderId: { [Models.Sequelize.Op.ne]: socket.userId },
-              isRead: false,
-            },
-          }
+        const response = await loadMessages(
+          data,
+          callback,
+          io,
+          socket,
+          userSockets
         );
 
-        // Find the other participant to notify them
-        const otherParticipant = await Models.RoomParticipant.findOne({
-          where: {
-            roomId: roomId,
-            userId: { [Models.Sequelize.Op.ne]: socket.userId },
-          },
-        });
-
-        // Notify other participant that messages were read if they're online
-        const recipientSocketId = userSockets[otherParticipant.userId];
-        if (recipientSocketId) {
-          io.to(recipientSocketId).emit("messagesRead", {
-            roomId,
-            readBy: socket.userId,
-          });
-        }
-
-        callback({
-          success: true,
-          messages: messages.reverse(),
-          page: page,
-          hasMore: messages.length === limit,
-        });
+        return response;
       } catch (error) {
         console.error("Error loading messages:", error);
         callback({ success: false, error: "Failed to load messages" });
@@ -397,49 +129,12 @@ function initializeSocket(io) {
 
     socket.on("addReaction", async (data, callback) => {
       try {
-        const { messageId, reaction, userId } = data;
+        const response = await addReaction(data, callback, io);
 
-        // Check if the user has already reacted
-        const alreadyReactedByUser = await Models.MessageReaction.findOne({
-          where: { messageId, userId, reactionType: reaction },
-        });
-
-        if (alreadyReactedByUser) {
-          console.error("User already reacted to the message");
-
-          return callback({
-            success: false,
-            error: "User already reacted to the message",
-          });
-        }
-
-        // Add the reaction
-        await Models.MessageReaction.create({
-          messageId,
-          userId,
-          reactionType: reaction,
-        });
-
-        // Fetch updated reactions for the message
-        const updatedReactions = await Models.MessageReaction.findAll({
-          where: { messageId },
-          attributes: ["reactionType", "userId"],
-        });
-
-        // Notify all participants in the room about the updated reactions
-        const message = await Models.Message.findByPk(messageId, {
-          attributes: ["roomId"],
-        });
-
-        io.to(`room:${message.roomId}`).emit("messageReactionUpdated", {
-          messageId,
-          roomId: message.roomId,
-          reactions: updatedReactions,
-        });
-
-        callback({ success: true });
+        return response;
       } catch (error) {
         console.error("Error adding reaction to the message: ", error);
+
         callback({
           success: false,
           error: "Failed to add reaction to the message",
@@ -449,31 +144,9 @@ function initializeSocket(io) {
 
     socket.on("removeReaction", async (data, callback) => {
       try {
-        const { messageId, reaction, userId } = data;
+        const response = await removeReaction(data, callback, io);
 
-        // Remove the reaction
-        await Models.MessageReaction.destroy({
-          where: { messageId, userId, reactionType: reaction },
-        });
-
-        // Fetch updated reactions for the message
-        const updatedReactions = await Models.MessageReaction.findAll({
-          where: { messageId },
-          attributes: ["reactionType", "userId"],
-        });
-
-        // Notify all participants in the room about the updated reactions
-        const message = await Models.Message.findByPk(messageId, {
-          attributes: ["roomId"],
-        });
-
-        io.to(`room:${message.roomId}`).emit("messageReactionUpdated", {
-          messageId,
-          roomId: message.roomId,
-          reactions: updatedReactions,
-        });
-
-        callback({ success: true });
+        return response;
       } catch (error) {
         console.error("Error removing reaction from the message: ", error);
         callback({

@@ -7,6 +7,7 @@ const {
 const { messages } = require("./messages");
 const { createPageSchema, deletePageSchema } = require("./validations");
 const { getChannel } = require("../../config/queue-config");
+const { Op } = require("sequelize");
 
 module.exports.createPage = async (req, res) => {
   try {
@@ -63,6 +64,22 @@ module.exports.getPage = async (req, res) => {
 
     if (!page) {
       return errorResponseWithoutData(res, messages.pageNotExists, 400);
+    }
+
+    const blockedUser = await Models.BlockedUser.findOne({
+      where: {
+        [Op.or]: [
+          { blockedBy: req.user.id, blockedUser: page.dataValues.pageOwner },
+          {
+            blockedBy: page.dataValues.pageOwner,
+            blockedUser: req.user.id,
+          },
+        ],
+      },
+    });
+
+    if (blockedUser) {
+      return errorResponseWithoutData(res, messages.blockedUser, 400);
     }
 
     return successResponseData(res, page, 200, messages.successFetchPage);
